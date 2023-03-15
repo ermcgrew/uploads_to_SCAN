@@ -3,13 +3,13 @@
 import flywheel
 import csv
 from datetime import datetime
-from config import email,password
+# from config import email,password
 
 
 def write_csv(data, scantype):
     if scantype == "MRI":
         headernames = mri_columns
-    elif scantype == "FBBPET":
+    elif scantype == "PET":
         headernames = pet_columms
     time = datetime.now().strftime("%Y%m%d_%H%M")
     with open(f"{scantype}_sessions_for_SCAN_{time}.csv", "w", newline="") as csvfile:
@@ -19,26 +19,43 @@ def write_csv(data, scantype):
     return
 
 
-def find_pet_times(acquisitions):
+def find_pet_metadata(acquisitions): 
     for acq in acquisitions:
         if "BR-DY_CTAC" in acq.label and "LOCALIZER" not in acq.label:
             acq = acq.reload()
             dicom_file_index = [
                 x for x in range(0, len(acq.files)) if acq.files[x].type == "dicom"
             ][0]
-            pet_times_list_temp = [acq.files[dicom_file_index].info["RadiopharmaceuticalInformationSequence"]["RadionuclideTotalDose"]]
-                ## conversion to from Becuerel to mCi
-            pet_times_list_temp.append("000000") ## fake data to hold place for Tracer Dose Time from dosage computer
-            pet_times_list_temp.append(
+            
+            pet_times_list=["000000"] ## fake data to hold place for Tracer Dose Time from dosage computer
+            pet_times_list.append(
                 acq.files[dicom_file_index].info[
                     "RadiopharmaceuticalInformationSequence"
                 ]["RadiopharmaceuticalStartTime"]
             )
-            pet_times_list_temp.append(
+            pet_times_list.append(
                 acq.files[dicom_file_index].info["AcquisitionTime"]
             )
-            result = list(map(format_times, pet_times_list_temp))
-            return result
+            
+            tracer_dose_bec = [acq.files[dicom_file_index].info["RadiopharmaceuticalInformationSequence"]["RadionuclideTotalDose"]]
+            print(tracer_dose_bec)
+            tracer_dose_mci = round(tracer_dose_bec[0] * 2.7e-8, 1) # conversion to from Becquerel to mCi to tenths
+            print(tracer_dose_mci)
+            
+            if "Amyloid" in acq.label:
+                tracer = "Florbetaben"
+            elif "AV1451" in acq.label:
+                tracer = "Flortaucipir"
+            else:
+                tracer=""
+                print("unable to identify tracer")
+
+            pet_metadata = list(map(format_times, pet_times_list))
+            pet_metadata.insert(0, tracer_dose_mci)
+            pet_metadata.insert(0, tracer)
+            print(pet_metadata)
+
+            return pet_metadata
 
 
 def format_times(time):
@@ -93,35 +110,31 @@ for subject in subjects:
             for session in subject.sessions():
                 if "3T" in session.label:
                     session_total += 1
-            #         print(f"This session should be added: {session.label}")
+                    print(f"This session should be added: {session.label}")
 
-            #         # download dicom
-            #         # save file loc
+                    # download dicom
+                    # save file loc
 
-            #         mri_data_list = [subject.label, "temp", "No"]
-            #         mri_list_to_write.append(dict(zip(mri_columns, mri_data_list)))
+                    mri_data_list = [subject.label, "temp", "No"]
+                    mri_list_to_write.append(dict(zip(mri_columns, mri_data_list)))
 
-            #         # acqs=[acquisition.label for acquisition in session.acquisitions()]
-            #         # if "Accelerated Sagittal MPRAGE (MSV21)" in acqs:
-            #         #     print(f"new acquisition type")
-
-            #     elif "FBBPET" in session.label: ######change to account for tau scans as well
-            #         session_total += 1
-            #         print(f"This session should be added: {session.label}")
-            #         # download dicom
-            #         # save file loc
-            #         pet_times_list = find_pet_times(session.acquisitions())
-
-            #         pet_data_list = [
-            #             subject.label,
-            #             "temp",
-            #             str(session.timestamp)[:10],
-            #             "Florbetaben",
-            #         ]
-            #         pet_data_list.extend(pet_times_list)
-            #         pet_list_to_write.append(dict(zip(pet_columms, pet_data_list)))
-            #     else:
-            #         continue
+                elif "FBBPET" in session.label or "AV1451PET" in session.label:
+                    session_total += 1
+                    print(f"This session should be added: {session.label}")
+                    
+                    # download dicom
+                    # save file loc
+                    
+                    pet_data_list = [
+                        subject.label,
+                        "temp",
+                        str(session.timestamp)[:10]
+                    ]
+                    pet_metadata_list = find_pet_metadata(session.acquisitions())
+                    pet_data_list.extend(pet_metadata_list)
+                    pet_list_to_write.append(dict(zip(pet_columms, pet_data_list)))
+                else:
+                    continue
     else:
         continue
 
@@ -129,7 +142,7 @@ for subject in subjects:
 # print(f"{session_total} total sessions will be uploaded.")
 
 # write_csv(mri_list_to_write, "MRI")
-# write_csv(pet_list_to_write, "FBBPET")
+# write_csv(pet_list_to_write, "PET")
 
 
 # call to java program
