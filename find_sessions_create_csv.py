@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
-import flywheel
+from config import email,password
 import csv
 from datetime import datetime
-# from config import email,password
+import flywheel
+import os
 
 
 def write_csv(data, scantype):
@@ -19,10 +20,8 @@ def write_csv(data, scantype):
     return
 
 
-def find_pet_metadata(acquisitions): 
-    for acq in acquisitions:
-        if "BR-DY_CTAC" in acq.label and "LOCALIZER" not in acq.label:
-            acq = acq.reload()
+def find_pet_metadata(acquisition): 
+            acq = acquisition.reload()
             dicom_file_index = [
                 x for x in range(0, len(acq.files)) if acq.files[x].type == "dicom"
             ][0]
@@ -38,9 +37,8 @@ def find_pet_metadata(acquisitions):
             )
             
             tracer_dose_bec = [acq.files[dicom_file_index].info["RadiopharmaceuticalInformationSequence"]["RadionuclideTotalDose"]]
-            print(tracer_dose_bec)
-            tracer_dose_mci = round(tracer_dose_bec[0] * 2.7e-8, 1) # conversion to from Becquerel to mCi to tenths
-            print(tracer_dose_mci)
+            # conversion to from Becquerel to mCi to tenths place
+            tracer_dose_mci = round(tracer_dose_bec[0] * 2.7e-8, 1) 
             
             if "Amyloid" in acq.label:
                 tracer = "Florbetaben"
@@ -54,7 +52,6 @@ def find_pet_metadata(acquisitions):
             pet_metadata.insert(0, tracer_dose_mci)
             pet_metadata.insert(0, tracer)
             print(pet_metadata)
-
             return pet_metadata
 
 
@@ -89,9 +86,14 @@ try:
 except flywheel.ApiException as e:
     print(f"Error: {e}")
 try:
-    subjects = project.subjects.iter_find("created>2022-06-01")  #'created>2022-06-01'
+    subjects = project.subjects.iter_find("created>2023-01-01")  #'created>2022-06-01'
 except flywheel.ApiException as e:
     print(f"Error: {e}")
+
+#create folder to hold downloads
+current_time = datetime.now().strftime("%Y_%m_%d")
+download_directory = f"/project/wolk/Prisma3T/relong/uploads_to_SCAN/{current_time}"
+# os.system(f'mkdir {download_directory}')
 
 # for each subject, keep sessions only if they are ABC, at least one session 2021 or later (consent form changed), have 3T and FBBPET sessions
 # new criteria: only if 3T session has Accelerated Sagital MPRAGE file 
@@ -105,41 +107,43 @@ for subject in subjects:
             and "Misc." not in session.tags
             and "ABC" in session.label
             and "7T" not in session.label]) #count of sessions to upload from
+            subject_total += 1
 
-########################################################################
+########################################################################          
             for session in subject.sessions():
                 if "3T" in session.label:
                     session_total += 1
-                    print(f"This session should be added: {session.label}")
-
-                    # download dicom
-                    # save file loc
-
-                    mri_data_list = [subject.label, "temp", "No"]
-                    mri_list_to_write.append(dict(zip(mri_columns, mri_data_list)))
+                    for acquisition in session.acquisitions():
+                        if "Sagittal" in acquisition.label:
+                            print(f"downloading {session.label} {acquisition.label}")
+                            mri_scan = acquisition.files[0].classification['Features'][0]
+                            file_loc = download_directory + "/" + session.label + "_" + mri_scan + ".zip"
+                            # fw.download_zip([acquisition], file_loc, include_types=['dicom'])
+                            mri_data_list = [subject.label, file_loc, "No"]
+                            mri_list_to_write.append(dict(zip(mri_columns, mri_data_list)))
 
                 elif "FBBPET" in session.label or "AV1451PET" in session.label:
                     session_total += 1
-                    print(f"This session should be added: {session.label}")
-                    
-                    # download dicom
-                    # save file loc
-                    
-                    pet_data_list = [
-                        subject.label,
-                        "temp",
-                        str(session.timestamp)[:10]
-                    ]
-                    pet_metadata_list = find_pet_metadata(session.acquisitions())
-                    pet_data_list.extend(pet_metadata_list)
-                    pet_list_to_write.append(dict(zip(pet_columms, pet_data_list)))
+                    file_loc = download_directory + "/" + session.label + ".zip"
+                    for acquisition in session.acquisitions():
+                        if "BR-DY_CTAC" in acquisition.label and "LOCALIZER" not in acquisition.label:
+                            print(f"downloading {session.label} {acquisition.label}")
+                            # fw.download_zip([acquisition], file_loc, include_types=['dicom'])
+                            pet_data_list = [
+                                subject.label,
+                                file_loc,
+                                str(session.timestamp)[:10]
+                            ]
+                            pet_metadata_list = find_pet_metadata(acquisition)
+                            pet_data_list.extend(pet_metadata_list)
+                            pet_list_to_write.append(dict(zip(pet_columms, pet_data_list)))
                 else:
                     continue
     else:
         continue
 
-# print(f"{subject_total} subjects have sessions to upload.")
-# print(f"{session_total} total sessions will be uploaded.")
+print(f"{subject_total} subjects have sessions to upload.")
+print(f"{session_total} total sessions will be uploaded.")
 
 # write_csv(mri_list_to_write, "MRI")
 # write_csv(pet_list_to_write, "PET")
@@ -150,3 +154,7 @@ for subject in subjects:
 # --email=email --password=password
 # --project=SCAN --site=ADC21
 # SCAN_MRI_upload_test_20230203.csv
+
+
+## when java program finished, remove all zip downloads
+# os.system ("rm /{current_time}/*.zip")
