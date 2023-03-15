@@ -51,7 +51,7 @@ def find_pet_metadata(acquisition):
             pet_metadata = list(map(format_times, pet_times_list))
             pet_metadata.insert(0, tracer_dose_mci)
             pet_metadata.insert(0, tracer)
-            print(pet_metadata)
+            # print(pet_metadata)
             return pet_metadata
 
 
@@ -60,7 +60,44 @@ def format_times(time):
         datetime.strptime(time.split(".")[0], "%H%M%S"), "%H:%M:%S"
     )
 
+# for each subject, keep sessions only if they are ABC, at least one session 2021 or later (consent form changed), have 3T and FBBPET sessions
+# new criteria: only if 3T session has Accelerated Sagital MPRAGE file 
+def check_sessions(subject):
+    print(f'Checking subject {subject.label}: {[session.label for session in subject.sessions()]}')
+    threeTcheck = False
+    petexists = False
+    for session in subject.sessions():
+        if "Duplicate" not in session.tags and "Misc." not in session.tags and "ABC" in session.label and "7T" not in session.label:
+            if "3T" in session.label:
+                for acquisition in session.acquisitions():
+                    if "Accelerated Sagittal MPRAGE (MSV21)" in acquisition.label:
+                        print("New T1 scan type found")
+                        threeTcheck=True
+            elif "FBBPET" in session.label or "AV1451" in session.label:
+                print("PET session found")
+                petexists = True
+        else:
+            continue
+    
+        if threeTcheck and petexists:
+            print("This subject has sessions to upload")
+            return True
 
+
+    # acq_test = [[acquisition.label for acquisition in session.acquisitions() if "Accelerated Sagittal MPRAGE (MSV21)" in acquisition.label] 
+    #             for session in subject.sessions() if "3T" in session.label and "ABC" in session.label]    
+    # print(acq_test)
+    # if acq_test and acq_test[0]:
+    #     print(f"Subject {subject.label} has AccSag file in 3T scan, checking for PET scans")
+    #     pet_test = [session.label for session in subject.sessions() if "FBBPET" in session.label or "AV1451" in session.label]
+    #     return(pet_test)
+        # if pet_test:
+            # return([session.label for session in subject.sessions() if "Duplicate" not in session.tags
+            # and "Misc." not in session.tags
+            # and "ABC" in session.label
+            # and "7T" not in session.label]) 
+
+         
 # Global variables
 subject_total = 0
 session_total = 0
@@ -86,7 +123,10 @@ try:
 except flywheel.ApiException as e:
     print(f"Error: {e}")
 try:
-    subjects = project.subjects.iter_find("created>2023-01-01")  #'created>2022-06-01'
+    subjects = project.subjects.iter_find("created>2022-09-01")  #'created>2022-06-01'
+    # subject = project.subjects.find("label=123367")  #'created>2022-06-01'
+    # check_sessions(subject)
+    # print(subject)
 except flywheel.ApiException as e:
     print(f"Error: {e}")
 
@@ -95,50 +135,42 @@ current_time = datetime.now().strftime("%Y_%m_%d")
 download_directory = f"/project/wolk/Prisma3T/relong/uploads_to_SCAN/{current_time}"
 # os.system(f'mkdir {download_directory}')
 
-# for each subject, keep sessions only if they are ABC, at least one session 2021 or later (consent form changed), have 3T and FBBPET sessions
-# new criteria: only if 3T session has Accelerated Sagital MPRAGE file 
 for subject in subjects:
-    acq_test = [[acquisition.label for acquisition in session.acquisitions() if "Accelerated Sagittal MPRAGE (MSV21)" in acquisition.label] for session in subject.sessions() if "3T" in session.label and "ABC" in session.label]    
-    if acq_test and acq_test[0]:
-        print(f"Subject {subject.label} has AccSag file in 3T scan, checking for PET scans")
-        pet_test = [session.label for session in subject.sessions() if "FBBPET" in session.label or "AV1451" in session.label]
-        if pet_test:
-            print([session.label for session in subject.sessions() if "Duplicate" not in session.tags
-            and "Misc." not in session.tags
-            and "ABC" in session.label
-            and "7T" not in session.label]) #count of sessions to upload from
-            subject_total += 1
+    # print(f"Checking subject {subject.label}")
+    # sessions_to_upload = check_sessions(subject)
+    # if len(sessions_to_upload) != 0:
+    #     subject_total += 1
+    if check_sessions(subject):
+        subject_total += 1  
+        for session in subject.sessions():
+            if "3T" in session.label and "ABC" in session.label and "Duplicate" not in session.tags and "Misc." not in session.tags:
+                session_total += 1
+                for acquisition in session.acquisitions():
+                    if "Sagittal" in acquisition.label:
+                        print(f"downloading {session.label} {acquisition.label}")
+                        mri_scan = acquisition.files[0].classification['Features'][0]
+                        file_loc = download_directory + "/" + session.label + "_" + mri_scan + ".zip"
+                        # fw.download_zip([acquisition], file_loc, include_types=['dicom'])
+                        mri_data_list = [subject.label, file_loc, "No"]
+                        mri_list_to_write.append(dict(zip(mri_columns, mri_data_list)))
 
-########################################################################          
-            for session in subject.sessions():
-                if "3T" in session.label:
-                    session_total += 1
-                    for acquisition in session.acquisitions():
-                        if "Sagittal" in acquisition.label:
-                            print(f"downloading {session.label} {acquisition.label}")
-                            mri_scan = acquisition.files[0].classification['Features'][0]
-                            file_loc = download_directory + "/" + session.label + "_" + mri_scan + ".zip"
-                            # fw.download_zip([acquisition], file_loc, include_types=['dicom'])
-                            mri_data_list = [subject.label, file_loc, "No"]
-                            mri_list_to_write.append(dict(zip(mri_columns, mri_data_list)))
-
-                elif "FBBPET" in session.label or "AV1451PET" in session.label:
-                    session_total += 1
-                    file_loc = download_directory + "/" + session.label + ".zip"
-                    for acquisition in session.acquisitions():
-                        if "BR-DY_CTAC" in acquisition.label and "LOCALIZER" not in acquisition.label:
-                            print(f"downloading {session.label} {acquisition.label}")
-                            # fw.download_zip([acquisition], file_loc, include_types=['dicom'])
-                            pet_data_list = [
-                                subject.label,
-                                file_loc,
-                                str(session.timestamp)[:10]
-                            ]
-                            pet_metadata_list = find_pet_metadata(acquisition)
-                            pet_data_list.extend(pet_metadata_list)
-                            pet_list_to_write.append(dict(zip(pet_columms, pet_data_list)))
-                else:
-                    continue
+            elif "FBBPET" in session.label or "AV1451PET" in session.label and "ABC" in session.label and "Duplicate" not in session.tags and "Misc." not in session.tags:
+                session_total += 1
+                file_loc = download_directory + "/" + session.label + ".zip"
+                for acquisition in session.acquisitions():
+                    if "BR-DY_CTAC" in acquisition.label and "LOCALIZER" not in acquisition.label:
+                        print(f"downloading {session.label} {acquisition.label}")
+                        # fw.download_zip([acquisition], file_loc, include_types=['dicom'])
+                        pet_data_list = [
+                            subject.label,
+                            file_loc,
+                            str(session.timestamp)[:10]
+                        ]
+                        pet_metadata_list = find_pet_metadata(acquisition)
+                        pet_data_list.extend(pet_metadata_list)
+                        pet_list_to_write.append(dict(zip(pet_columms, pet_data_list)))
+            else:
+                continue
     else:
         continue
 
