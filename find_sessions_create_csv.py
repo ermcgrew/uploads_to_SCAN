@@ -2,7 +2,7 @@
 
 from config import email,password
 import csv
-from datetime import datetime
+from datetime import datetime,timezone
 import flywheel
 import os
 
@@ -60,47 +60,20 @@ def format_times(time):
         datetime.strptime(time.split(".")[0], "%H%M%S"), "%H:%M:%S"
     )
 
-# for each subject, keep sessions only if they are ABC, at least one session 2021 or later (consent form changed), have 3T and FBBPET sessions
-# new criteria: only if 3T session has Accelerated Sagital MPRAGE file 
+# for each subject, upload only if sessions are ABC, 2021 or later, 
+# have 3T with new protocol Accelerated Sagital MPRAGE file and at least one PET session
 def check_sessions(subject):
-    print(f'Checking subject {subject.label}: {[session.label for session in subject.sessions()]}')
-    threeTcheck = False
-    petexists = False
-    for session in subject.sessions():
-        if "Duplicate" not in session.tags and "Misc." not in session.tags and "ABC" in session.label and "7T" not in session.label:
-            if "3T" in session.label:
-                for acquisition in session.acquisitions():
-                    if "Accelerated Sagittal MPRAGE (MSV21)" in acquisition.label:
-                        print("New T1 scan type found")
-                        threeTcheck=True
-            elif "FBBPET" in session.label or "AV1451" in session.label:
-                print("PET session found")
-                petexists = True
-        else:
-            continue
-    
-        if threeTcheck and petexists:
-            print("This subject has sessions to upload")
-            return True
-
-
-    # acq_test = [[acquisition.label for acquisition in session.acquisitions() if "Accelerated Sagittal MPRAGE (MSV21)" in acquisition.label] 
-    #             for session in subject.sessions() if "3T" in session.label and "ABC" in session.label]    
-    # print(acq_test)
-    # if acq_test and acq_test[0]:
-    #     print(f"Subject {subject.label} has AccSag file in 3T scan, checking for PET scans")
-    #     pet_test = [session.label for session in subject.sessions() if "FBBPET" in session.label or "AV1451" in session.label]
-    #     return(pet_test)
-        # if pet_test:
-            # return([session.label for session in subject.sessions() if "Duplicate" not in session.tags
-            # and "Misc." not in session.tags
-            # and "ABC" in session.label
-            # and "7T" not in session.label]) 
+    check_for_AccSag_acquisition = [[acquisition.label for acquisition in session.acquisitions() if "Accelerated Sagittal MPRAGE (MSV21)" in acquisition.label] 
+                for session in subject.sessions() if "3T" in session.label and "ABC" in session.label]    
+    if len(check_for_AccSag_acquisition) >=1:
+        # print(f"Subject {subject.label} has AccSag file in 3T scan, checking for PET scans")
+        check_for_PET = [session.label for session in subject.sessions() if "FBBPET" in session.label or "AV1451" in session.label and "ABC" in session.label]
+        return(check_for_PET)
 
          
 # Global variables
 subject_total = 0
-session_total = 0
+scan_total = 0
 mri_list_to_write = []
 pet_list_to_write = []
 mri_columns = ["Subject ID", "Directory", "Sedation", "Eyes Open", "Notes"]
@@ -122,11 +95,9 @@ try:
     project = fw.get_project("5c508d5fc2a4ad002d7628d8")  # NACC-SC
 except flywheel.ApiException as e:
     print(f"Error: {e}")
+
 try:
     subjects = project.subjects.iter_find("created>2022-09-01")  #'created>2022-06-01'
-    # subject = project.subjects.find("label=123367")  #'created>2022-06-01'
-    # check_sessions(subject)
-    # print(subject)
 except flywheel.ApiException as e:
     print(f"Error: {e}")
 
@@ -136,26 +107,24 @@ download_directory = f"/project/wolk/Prisma3T/relong/uploads_to_SCAN/{current_ti
 # os.system(f'mkdir {download_directory}')
 
 for subject in subjects:
-    # print(f"Checking subject {subject.label}")
-    # sessions_to_upload = check_sessions(subject)
-    # if len(sessions_to_upload) != 0:
-    #     subject_total += 1
+    print(f"Subject {subject.label}")
     if check_sessions(subject):
         subject_total += 1  
         for session in subject.sessions():
-            if "3T" in session.label and "ABC" in session.label and "Duplicate" not in session.tags and "Misc." not in session.tags:
-                session_total += 1
+            if "3T" in session.label and "ABC" in session.label and "Duplicate" not in session.tags and "Misc." not in session.tags and session.timestamp >= datetime(2021,1,1,0,0,0,tzinfo=timezone.utc):
                 for acquisition in session.acquisitions():
-                    if "Sagittal" in acquisition.label:
+                    # get both FLAIR and T1 scans
+                    if "Sagittal" in acquisition.label: 
                         print(f"downloading {session.label} {acquisition.label}")
-                        mri_scan = acquisition.files[0].classification['Features'][0]
-                        file_loc = download_directory + "/" + session.label + "_" + mri_scan + ".zip"
+                        scan_total += 1
+                        file_loc = download_directory + "/" + session.label + "_" +acquisition.label + ".zip"
                         # fw.download_zip([acquisition], file_loc, include_types=['dicom'])
                         mri_data_list = [subject.label, file_loc, "No"]
                         mri_list_to_write.append(dict(zip(mri_columns, mri_data_list)))
 
-            elif "FBBPET" in session.label or "AV1451PET" in session.label and "ABC" in session.label and "Duplicate" not in session.tags and "Misc." not in session.tags:
-                session_total += 1
+            elif "FBBPET" in session.label or "AV1451PET" in session.label and "ABC" in session.label and "Duplicate" not in session.tags and "Misc." not in session.tags and session.timestamp >= datetime(2021,1,1,0,0,0,tzinfo=timezone.utc):
+                print(session.timestamp)
+                scan_total += 1
                 file_loc = download_directory + "/" + session.label + ".zip"
                 for acquisition in session.acquisitions():
                     if "BR-DY_CTAC" in acquisition.label and "LOCALIZER" not in acquisition.label:
@@ -175,7 +144,7 @@ for subject in subjects:
         continue
 
 print(f"{subject_total} subjects have sessions to upload.")
-print(f"{session_total} total sessions will be uploaded.")
+print(f"{scan_total} total sessions will be uploaded.")
 
 # write_csv(mri_list_to_write, "MRI")
 # write_csv(pet_list_to_write, "PET")
