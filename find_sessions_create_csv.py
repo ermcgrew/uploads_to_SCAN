@@ -4,6 +4,7 @@ from config import email,password
 import csv
 from datetime import datetime,timezone
 import flywheel
+import logging
 import os
 
 
@@ -13,7 +14,7 @@ def write_csv(data, scantype):
     elif scantype == "PET":
         headernames = pet_columms
     time = datetime.now().strftime("%Y%m%d_%H%M")
-    with open(f"{scantype}_sessions_for_SCAN_{time}.csv", "w", newline="") as csvfile:
+    with open(f"{download_directory}/{scantype}_sessions_for_SCAN_{time}.csv", "w", newline="") as csvfile:
         csvwriter = csv.DictWriter(csvfile, fieldnames=headernames)
         csvwriter.writeheader()
         csvwriter.writerows(data)
@@ -21,38 +22,51 @@ def write_csv(data, scantype):
 
 
 def find_pet_metadata(acquisition): 
-            acq = acquisition.reload()
-            dicom_file_index = [
-                x for x in range(0, len(acq.files)) if acq.files[x].type == "dicom"
-            ][0]
-            
-            pet_times_list=["000000"] ## fake data to hold place for Tracer Dose Time from dosage computer
-            pet_times_list.append(
-                acq.files[dicom_file_index].info[
-                    "RadiopharmaceuticalInformationSequence"
-                ]["RadiopharmaceuticalStartTime"]
-            )
-            pet_times_list.append(
-                acq.files[dicom_file_index].info["AcquisitionTime"]
-            )
-            
-            tracer_dose_bec = [acq.files[dicom_file_index].info["RadiopharmaceuticalInformationSequence"]["RadionuclideTotalDose"]]
-            # conversion to from Becquerel to mCi to tenths place
-            tracer_dose_mci = round(tracer_dose_bec[0] * 2.7e-8, 1) 
-            
-            if "Amyloid" in acq.label:
-                tracer = "Florbetaben"
-            elif "AV1451" in acq.label:
-                tracer = "Flortaucipir"
-            else:
-                tracer=""
-                print("unable to identify tracer")
+    acq = acquisition.reload()
+    dicom_file_index = [
+        x for x in range(0, len(acq.files)) if acq.files[x].type == "dicom"
+    ][0]
+    
+    pet_times_list=["000000"] ## fake data to hold place for Tracer Dose Time from dosage computer
 
-            pet_metadata = list(map(format_times, pet_times_list))
-            pet_metadata.insert(0, tracer_dose_mci)
-            pet_metadata.insert(0, tracer)
-            # print(pet_metadata)
-            return pet_metadata
+    try:
+        tracer_inj_time = acq.files[dicom_file_index].info[
+            "RadiopharmaceuticalInformationSequence"
+        ]["RadiopharmaceuticalStartTime"]
+    except KeyError as e:
+        tracer_inj_time = "000000"
+        logging.warning(f"Key {e} doesn't exist")
+    pet_times_list.append(tracer_inj_time)
+
+    try:
+        emission_start_time = acq.files[dicom_file_index].info["AcquisitionTime"]
+    except KeyError as e:
+        emission_start_time = ""
+        logging.warning(f"Key {e} doesn't exist") 
+    pet_times_list.append(emission_start_time)
+
+    try:
+        tracer_dose_bec = [acq.files[dicom_file_index].info["RadiopharmaceuticalInformationSequence"]["RadionuclideTotalDose"]]
+    except KeyError as e:
+        tracer_dose_bec = [0]
+        logging.warning(f"Key {e} doesn't exist")
+
+    # conversion to from Becquerel to mCi to tenths place
+    tracer_dose_mci = round(tracer_dose_bec[0] * 2.7e-8, 1) 
+    
+    if "Amyloid" in acq.label:
+        tracer = "Florbetaben"
+    elif "AV1451" in acq.label:
+        tracer = "Flortaucipir"
+    else:
+        tracer=""
+        logging.warning(f"Unable to identify tracer")
+
+    pet_metadata = list(map(format_times, pet_times_list))
+    pet_metadata.insert(0, tracer_dose_mci)
+    pet_metadata.insert(0, tracer)
+    # print(pet_metadata)
+    return pet_metadata
 
 
 def format_times(time):
@@ -64,13 +78,15 @@ def format_times(time):
 # have 3T with new protocol Accelerated Sagital MPRAGE file and at least one PET session
 def check_sessions(subject):
     check_for_AccSag_acquisition = [[acquisition.label for acquisition in session.acquisitions() if "Accelerated Sagittal MPRAGE (MSV21)" in acquisition.label] 
-                for session in subject.sessions() if "3T" in session.label and "ABC" in session.label]    
-    if len(check_for_AccSag_acquisition) >=1:
+                for session in subject.sessions() if "3T" in session.label and "ABC" in session.label]
+    print(check_for_AccSag_acquisition)
+    if [check_for_AccSag_acquisition[x] for x in range(0,len(check_for_AccSag_acquisition)) if check_for_AccSag_acquisition[x]]:
         # print(f"Subject {subject.label} has AccSag file in 3T scan, checking for PET scans")
-        check_for_PET = [session.label for session in subject.sessions() if "FBBPET" in session.label or "AV1451" in session.label and "ABC" in session.label]
+        check_for_PET = [session.label for session in subject.sessions() if ("FBBPET" in session.label or "AV1451" in session.label) and "ABC" in session.label and session.timestamp >= datetime(2021,1,1,0,0,0,tzinfo=timezone.utc)]
         return(check_for_PET)
 
-         
+logging.basicConfig(format="%(levelname)s: %(message)s", level=logging.DEBUG)
+
 # Global variables
 subject_total = 0
 scan_total = 0
@@ -97,14 +113,14 @@ except flywheel.ApiException as e:
     print(f"Error: {e}")
 
 try:
-    subjects = project.subjects.iter_find("created>2022-09-01")  #'created>2022-06-01'
+    subjects = project.subjects.iter_find('created>2023-01-01')  #'created>2022-06-01'
 except flywheel.ApiException as e:
     print(f"Error: {e}")
 
 #create folder to hold downloads
 current_time = datetime.now().strftime("%Y_%m_%d")
 download_directory = f"/project/wolk/Prisma3T/relong/uploads_to_SCAN/{current_time}"
-# os.system(f'mkdir {download_directory}')
+os.system(f'mkdir {download_directory}')
 
 for subject in subjects:
     print(f"Subject {subject.label}")
@@ -122,8 +138,7 @@ for subject in subjects:
                         mri_data_list = [subject.label, file_loc, "No"]
                         mri_list_to_write.append(dict(zip(mri_columns, mri_data_list)))
 
-            elif "FBBPET" in session.label or "AV1451PET" in session.label and "ABC" in session.label and "Duplicate" not in session.tags and "Misc." not in session.tags and session.timestamp >= datetime(2021,1,1,0,0,0,tzinfo=timezone.utc):
-                print(session.timestamp)
+            elif ("FBBPET" in session.label or "AV1451PET" in session.label) and ("ABC" in session.label and "Duplicate" not in session.tags and "Misc." not in session.tags and session.timestamp >= datetime(2021,1,1,0,0,0,tzinfo=timezone.utc)):
                 scan_total += 1
                 file_loc = download_directory + "/" + session.label + ".zip"
                 for acquisition in session.acquisitions():
@@ -146,8 +161,8 @@ for subject in subjects:
 print(f"{subject_total} subjects have sessions to upload.")
 print(f"{scan_total} total sessions will be uploaded.")
 
-# write_csv(mri_list_to_write, "MRI")
-# write_csv(pet_list_to_write, "PET")
+write_csv(mri_list_to_write, "MRI")
+write_csv(pet_list_to_write, "PET")
 
 
 # call to java program
