@@ -14,11 +14,12 @@ def write_csv(data, scantype):
     elif scantype == "PET":
         headernames = pet_columms
     time = datetime.now().strftime("%Y%m%d_%H%M")
-    with open(f"{download_directory}/{scantype}_sessions_for_SCAN_{time}.csv", "w", newline="") as csvfile:
+    filename = f"{download_directory}/{scantype}_sessions_for_SCAN_{time}.csv"
+    with open(filename, "w", newline="") as csvfile:
         csvwriter = csv.DictWriter(csvfile, fieldnames=headernames)
         csvwriter.writeheader()
         csvwriter.writerows(data)
-    return
+    return(filename)
 
 
 def find_pet_metadata(acquisition): 
@@ -79,7 +80,7 @@ def format_times(time):
 def check_sessions(subject):
     check_for_AccSag_acquisition = [[acquisition.label for acquisition in session.acquisitions() if "Accelerated Sagittal MPRAGE (MSV21)" in acquisition.label] 
                 for session in subject.sessions() if "3T" in session.label and "ABC" in session.label]
-    print(check_for_AccSag_acquisition)
+    # print(check_for_AccSag_acquisition)
     if [check_for_AccSag_acquisition[x] for x in range(0,len(check_for_AccSag_acquisition)) if check_for_AccSag_acquisition[x]]:
         # print(f"Subject {subject.label} has AccSag file in 3T scan, checking for PET scans")
         check_for_PET = [session.label for session in subject.sessions() if ("FBBPET" in session.label or "AV1451" in session.label) and "ABC" in session.label and session.timestamp >= datetime(2021,1,1,0,0,0,tzinfo=timezone.utc)]
@@ -113,7 +114,7 @@ except flywheel.ApiException as e:
     print(f"Error: {e}")
 
 try:
-    subjects = project.subjects.iter_find('created>2023-01-01')  #'created>2022-06-01'
+    subjects = project.subjects.iter_find('created>2023-01-19')  #'created>2022-06-01'
 except flywheel.ApiException as e:
     print(f"Error: {e}")
 
@@ -134,7 +135,7 @@ for subject in subjects:
                         print(f"downloading {session.label} {acquisition.label}")
                         scan_total += 1
                         file_loc = download_directory + "/" + session.label + "_" +acquisition.label + ".zip"
-                        # fw.download_zip([acquisition], file_loc, include_types=['dicom'])
+                        fw.download_zip([acquisition], file_loc, include_types=['dicom'])
                         mri_data_list = [subject.label, file_loc, "No"]
                         mri_list_to_write.append(dict(zip(mri_columns, mri_data_list)))
 
@@ -144,7 +145,7 @@ for subject in subjects:
                 for acquisition in session.acquisitions():
                     if "BR-DY_CTAC" in acquisition.label and "LOCALIZER" not in acquisition.label:
                         print(f"downloading {session.label} {acquisition.label}")
-                        # fw.download_zip([acquisition], file_loc, include_types=['dicom'])
+                        fw.download_zip([acquisition], file_loc, include_types=['dicom'])
                         pet_data_list = [
                             subject.label,
                             file_loc,
@@ -159,18 +160,14 @@ for subject in subjects:
         continue
 
 print(f"{subject_total} subjects have sessions to upload.")
-print(f"{scan_total} total sessions will be uploaded.")
+print(f"{scan_total} total scan files will be uploaded.")
 
-write_csv(mri_list_to_write, "MRI")
-write_csv(pet_list_to_write, "PET")
+mrifile=write_csv(mri_list_to_write, "MRI")
+petfile=write_csv(pet_list_to_write, "PET")
 
-
-# call to java program
-# java -jar IdaUploader_02Dec2022.jar
-# --email=email --password=password
-# --project=SCAN --site=ADC21
-# SCAN_MRI_upload_test_20230203.csv
-
+# # call to java program
+# os.system(f"echo java -jar IdaUploader_02Dec2022.jar --email={email} --password='{password}' --project=SCAN --site=ADC21 {mrifile}")
+# os.system(f"echo java -jar IdaUploader_02Dec2022.jar --email={email} --password='{password}' --project=SCAN --site=ADC21 {petfile}")
 
 ## when java program finished, remove all zip downloads
-# os.system ("rm /{current_time}/*.zip")
+# os.system(f"rm {download_directory}/*.zip")
