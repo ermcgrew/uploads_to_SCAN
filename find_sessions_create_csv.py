@@ -131,7 +131,7 @@ os.system(f'mkdir {download_directory}')
 for subject in subjects:
     print(f"Subject {subject.label}")
     usable_sessions = check_sessions(subject)
-    print(usable_sessions)
+    # print(usable_sessions)
     if usable_sessions:
         subject_total += 1  
         for session in subject.sessions():
@@ -142,20 +142,25 @@ for subject in subjects:
                         if "Sagittal" in acquisition.label: 
                             print(f"downloading {session.label} {acquisition.label}")
                             scan_total += 1
-                            file_loc = download_directory + "/" + session.label + "_" + acquisition.label #+ ".zip"
-                            fw.download_zip([acquisition], file_loc, include_types=['dicom'])
-                            mri_data_list = [subject.label, file_loc, "No"]
+                            acquisition_type = acquisition.label.split(' ')[2]
+                            acquisition_directory = download_directory + "/" + session.label + "_" + acquisition_type
+                            os.system(f'mkdir {acquisition_directory}')
+                            acquisition_file = acquisition_directory + "/" + acquisition_type + ".zip"
+                            fw.download_zip([acquisition], acquisition_file, include_types=['dicom'])
+                            mri_data_list = [subject.label, acquisition_directory, "No"]
                             mri_list_to_write.append(dict(zip(mri_columns, mri_data_list)))
                 elif 'PET' in session.label:
-                    scan_total += 1
-                    file_loc = download_directory + "/" + session.label + ".zip"
                     for acquisition in session.acquisitions():
                         if "BR-DY_CTAC" in acquisition.label and "LOCALIZER" not in acquisition.label:
                             print(f"downloading {session.label} {acquisition.label}")
-                            # fw.download_zip([acquisition], file_loc, include_types=['dicom'])
+                            scan_total += 1
+                            acquisition_directory = download_directory + "/" + session.label
+                            os.system(f'mkdir {acquisition_directory}')
+                            acquisition_file = acquisition_directory + "/" + acquisition.label + ".zip"
+                            fw.download_zip([acquisition], acquisition_file, include_types=['dicom'])
                             pet_data_list = [
                                 subject.label,
-                                file_loc,
+                                acquisition_directory,
                                 str(session.timestamp)[:10]
                             ]
                             pet_metadata_list = find_pet_metadata(acquisition)
@@ -169,8 +174,8 @@ for subject in subjects:
 print(f"{subject_total} subjects have sessions to upload.")
 print(f"{scan_total} total scan files will be uploaded.")
 
-# mrifile=write_csv(mri_list_to_write, "MRI")
-# petfile=write_csv(pet_list_to_write, "PET")
+mrifile=write_csv(mri_list_to_write, "MRI")
+petfile=write_csv(pet_list_to_write, "PET")
 
 # # call to java program
 # os.system(f"echo java -jar IdaUploader_02Dec2022.jar --email={email} --password='{password}' --project=SCAN --site=ADC21 {mrifile}")
