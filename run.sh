@@ -9,6 +9,7 @@ echo Running python script
 python find_sessions_create_csv.py
 
 download_directory=/project/wolk/Prisma3T/relong/uploads_to_SCAN
+### TODO: select current date directory in uploads_to_SCAN
 #unzip dicom files and get csv file names for java call
 for dir in $download_directory/2023_03_17/* ; do 
     if [[ -d $dir ]] ; then 
@@ -35,4 +36,5 @@ echo Running java uploader
 java -jar /project/wolk/Prisma3T/relong/scripts/uploads_to_SCAN/IdaUploader_02Dec2022.jar --email=$email --password=$password --project=SCAN --site=ADC21 $mrifile
 # java -jar IdaUploader_02Dec2022.jar --email=$email --password=$password --project=SCAN --site=ADC21 $petfile
 
+# to submit, run:
 # bsub < run.sh -o /project/wolk/Prisma3T/relong/uploads_to_SCAN/2023_03_17/output.%J -e /project/wolk/Prisma3T/relong/uploads_to_SCAN/2023_03_17/output.%J/errors.%J
