@@ -6,6 +6,7 @@ from datetime import datetime,timezone
 import flywheel
 import logging
 import os
+from pandas.core.common import flatten
 
 
 def write_csv(data, scantype):
@@ -78,14 +79,18 @@ def format_times(time):
 # for each subject, upload only if sessions are ABC, 2021 or later, 
 # have 3T with new protocol Accelerated Sagital MPRAGE file and at least one PET session
 def check_sessions(subject):
-    check_for_AccSag_acquisition = [[acquisition.label for acquisition in session.acquisitions() if "Accelerated Sagittal MPRAGE (MSV21)" in acquisition.label] 
+    check_for_AccSag_acquisition = [[session.label for acquisition in session.acquisitions() if "Accelerated Sagittal MPRAGE (MSV21)" in acquisition.label] 
                 for session in subject.sessions() if "3T" in session.label and "ABC" in session.label]
-    # print(check_for_AccSag_acquisition)
-    if [check_for_AccSag_acquisition[x] for x in range(0,len(check_for_AccSag_acquisition)) if check_for_AccSag_acquisition[x]]:
+    usable_sessions = list(flatten(check_for_AccSag_acquisition))
+    if usable_sessions:    
         # print(f"Subject {subject.label} has AccSag file in 3T scan, checking for PET scans")
         check_for_PET = [session.label for session in subject.sessions() if ("FBBPET" in session.label or "AV1451" in session.label) and "ABC" in session.label and session.timestamp >= datetime(2021,1,1,0,0,0,tzinfo=timezone.utc)]
-        return(check_for_PET)
+        if check_for_PET:
+            usable_sessions.extend(check_for_PET)
+            return(usable_sessions)
+    
 
+#set up logging
 logging.basicConfig(format="%(levelname)s: %(message)s", level=logging.DEBUG)
 
 # Global variables
@@ -125,35 +130,37 @@ os.system(f'mkdir {download_directory}')
 
 for subject in subjects:
     print(f"Subject {subject.label}")
-    if check_sessions(subject):
+    usable_sessions = check_sessions(subject)
+    print(usable_sessions)
+    if usable_sessions:
         subject_total += 1  
         for session in subject.sessions():
-            if "3T" in session.label and "ABC" in session.label and "Duplicate" not in session.tags and "Misc." not in session.tags and session.timestamp >= datetime(2021,1,1,0,0,0,tzinfo=timezone.utc):
-                for acquisition in session.acquisitions():
+            if session.label in usable_sessions:
+                if '3T' in session.label:
+                    for acquisition in session.acquisitions():
                     # get both FLAIR and T1 scans
-                    if "Sagittal" in acquisition.label: 
-                        print(f"downloading {session.label} {acquisition.label}")
-                        scan_total += 1
-                        file_loc = download_directory + "/" + session.label + "_" +acquisition.label + ".zip"
-                        fw.download_zip([acquisition], file_loc, include_types=['dicom'])
-                        mri_data_list = [subject.label, file_loc, "No"]
-                        mri_list_to_write.append(dict(zip(mri_columns, mri_data_list)))
-
-            elif ("FBBPET" in session.label or "AV1451PET" in session.label) and ("ABC" in session.label and "Duplicate" not in session.tags and "Misc." not in session.tags and session.timestamp >= datetime(2021,1,1,0,0,0,tzinfo=timezone.utc)):
-                scan_total += 1
-                file_loc = download_directory + "/" + session.label + ".zip"
-                for acquisition in session.acquisitions():
-                    if "BR-DY_CTAC" in acquisition.label and "LOCALIZER" not in acquisition.label:
-                        print(f"downloading {session.label} {acquisition.label}")
-                        fw.download_zip([acquisition], file_loc, include_types=['dicom'])
-                        pet_data_list = [
-                            subject.label,
-                            file_loc,
-                            str(session.timestamp)[:10]
-                        ]
-                        pet_metadata_list = find_pet_metadata(acquisition)
-                        pet_data_list.extend(pet_metadata_list)
-                        pet_list_to_write.append(dict(zip(pet_columms, pet_data_list)))
+                        if "Sagittal" in acquisition.label: 
+                            print(f"downloading {session.label} {acquisition.label}")
+                            scan_total += 1
+                            file_loc = download_directory + "/" + session.label + "_" + acquisition.label #+ ".zip"
+                            fw.download_zip([acquisition], file_loc, include_types=['dicom'])
+                            mri_data_list = [subject.label, file_loc, "No"]
+                            mri_list_to_write.append(dict(zip(mri_columns, mri_data_list)))
+                elif 'PET' in session.label:
+                    scan_total += 1
+                    file_loc = download_directory + "/" + session.label + ".zip"
+                    for acquisition in session.acquisitions():
+                        if "BR-DY_CTAC" in acquisition.label and "LOCALIZER" not in acquisition.label:
+                            print(f"downloading {session.label} {acquisition.label}")
+                            # fw.download_zip([acquisition], file_loc, include_types=['dicom'])
+                            pet_data_list = [
+                                subject.label,
+                                file_loc,
+                                str(session.timestamp)[:10]
+                            ]
+                            pet_metadata_list = find_pet_metadata(acquisition)
+                            pet_data_list.extend(pet_metadata_list)
+                            pet_list_to_write.append(dict(zip(pet_columms, pet_data_list)))
             else:
                 continue
     else:
@@ -162,8 +169,8 @@ for subject in subjects:
 print(f"{subject_total} subjects have sessions to upload.")
 print(f"{scan_total} total scan files will be uploaded.")
 
-mrifile=write_csv(mri_list_to_write, "MRI")
-petfile=write_csv(pet_list_to_write, "PET")
+# mrifile=write_csv(mri_list_to_write, "MRI")
+# petfile=write_csv(pet_list_to_write, "PET")
 
 # # call to java program
 # os.system(f"echo java -jar IdaUploader_02Dec2022.jar --email={email} --password='{password}' --project=SCAN --site=ADC21 {mrifile}")
