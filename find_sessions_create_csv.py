@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-from config import email,password
 import csv
 from datetime import datetime,timezone
 import flywheel
@@ -20,7 +19,7 @@ def write_csv(data, scantype):
         csvwriter = csv.DictWriter(csvfile, fieldnames=headernames)
         csvwriter.writeheader()
         csvwriter.writerows(data)
-    return(filename)
+    return
 
 
 def find_pet_metadata(acquisition): 
@@ -119,19 +118,18 @@ except flywheel.ApiException as e:
     print(f"Error: {e}")
 
 try:
-    subjects = project.subjects.iter_find('created>2023-01-19')  #'created>2022-06-01'
+    subjects = project.subjects.iter_find()  #'created>2022-06-01'
 except flywheel.ApiException as e:
     print(f"Error: {e}")
 
 #create folder to hold downloads
 current_time = datetime.now().strftime("%Y_%m_%d")
 download_directory = f"/project/wolk/Prisma3T/relong/uploads_to_SCAN/{current_time}"
-# os.system(f'mkdir {download_directory}')
+os.system(f'mkdir {download_directory}')
 
 for subject in subjects:
     print(f"Subject {subject.label}")
     usable_sessions = check_sessions(subject)
-    # print(usable_sessions)
     if usable_sessions:
         subject_total += 1  
         for session in subject.sessions():
@@ -144,9 +142,9 @@ for subject in subjects:
                             scan_total += 1
                             acquisition_type = acquisition.label.split(' ')[2]
                             acquisition_directory = download_directory + "/" + session.label + "_" + acquisition_type
-                            # os.system(f'mkdir {acquisition_directory}')
+                            os.system(f'mkdir {acquisition_directory}')
                             acquisition_file = acquisition_directory + "/" + acquisition_type + ".zip"
-                            # fw.download_zip([acquisition], acquisition_file, include_types=['dicom'])
+                            fw.download_zip([acquisition], acquisition_file, include_types=['dicom'])
                             mri_data_list = [subject.label, acquisition_directory, "No"]
                             mri_list_to_write.append(dict(zip(mri_columns, mri_data_list)))
                 elif 'PET' in session.label:
@@ -157,7 +155,7 @@ for subject in subjects:
                             acquisition_directory = download_directory + "/" + session.label
                             os.system(f'mkdir {acquisition_directory}')
                             acquisition_file = acquisition_directory + "/" + "PET.zip"
-                            # fw.download_zip([acquisition], acquisition_file, include_types=['dicom'])
+                            fw.download_zip([acquisition], acquisition_file, include_types=['dicom'])
                             pet_data_list = [
                                 subject.label,
                                 acquisition_directory,
@@ -174,9 +172,5 @@ for subject in subjects:
 print(f"{subject_total} subjects have sessions to upload.")
 print(f"{scan_total} total scan files will be uploaded.")
 
-# mrifile=write_csv(mri_list_to_write, "MRI")
-# petfile=write_csv(pet_list_to_write, "PET")
-
-# # call to java program
-# os.system(f"echo java -jar IdaUploader_02Dec2022.jar --email={email} --password='{password}' --project=SCAN --site=ADC21 {mrifile}")
-# os.system(f"echo java -jar IdaUploader_02Dec2022.jar --email={email} --password='{password}' --project=SCAN --site=ADC21 {petfile}")
+write_csv(mri_list_to_write, "MRI")
+write_csv(pet_list_to_write, "PET")
