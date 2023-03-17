@@ -156,7 +156,7 @@ for subject in subjects:
                             scan_total += 1
                             acquisition_directory = download_directory + "/" + session.label
                             os.system(f'mkdir {acquisition_directory}')
-                            acquisition_file = acquisition_directory + "/" + acquisition.label + ".zip"
+                            acquisition_file = acquisition_directory + "/" + "PET.zip"
                             fw.download_zip([acquisition], acquisition_file, include_types=['dicom'])
                             pet_data_list = [
                                 subject.label,
@@ -180,6 +180,3 @@ petfile=write_csv(pet_list_to_write, "PET")
 # # call to java program
 # os.system(f"echo java -jar IdaUploader_02Dec2022.jar --email={email} --password='{password}' --project=SCAN --site=ADC21 {mrifile}")
 # os.system(f"echo java -jar IdaUploader_02Dec2022.jar --email={email} --password='{password}' --project=SCAN --site=ADC21 {petfile}")
-
-## when java program finished, remove all zip downloads
-# os.system(f"rm {download_directory}/*.zip")
