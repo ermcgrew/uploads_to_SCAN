@@ -37,4 +37,4 @@ java -jar /project/wolk/Prisma3T/relong/scripts/uploads_to_SCAN/IdaUploader_02De
 # java -jar IdaUploader_02Dec2022.jar --email=$email --password=$password --project=SCAN --site=ADC21 $petfile
 
 # to submit, run:
-# bsub < run.sh -o /project/wolk/Prisma3T/relong/uploads_to_SCAN/2023_03_17/output.%J -e /project/wolk/Prisma3T/relong/uploads_to_SCAN/2023_03_17/output.%J/errors.%J
+# bsub < run.sh -o /project/wolk/Prisma3T/relong/uploads_to_SCAN/2023_03_17/output.%J -e /project/wolk/Prisma3T/relong/uploads_to_SCAN/2023_03_17/errors.%J
