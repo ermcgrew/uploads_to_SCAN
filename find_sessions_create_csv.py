@@ -39,6 +39,8 @@ def find_pet_metadata(acquisition):
         logging.warning(f"Key {e} doesn't exist")
     pet_times_list.append(tracer_inj_time)
 
+    ##TODO: if flywheel has not fixed this problem, pull start time from nifti file or by reading through 
+        #downloaded and unzipped dicoms. 
     try:
         emission_start_time = acq.files[dicom_file_index].info["AcquisitionTime"]
     except KeyError as e:
