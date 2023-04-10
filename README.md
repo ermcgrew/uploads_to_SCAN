@@ -2,7 +2,7 @@
 Program to find and upload SCAN-compliant data to IDA-LONI database from Univeristy of Pennsylvania ADRC.
 
 On bscsub cluster:
-`bsub < run.sh -o /project/wolk/Prisma3T/relong/uploads_to_SCAN/2023_03_17/output.%J -e /project/wolk/Prisma3T/relong/uploads_to_SCAN/2023_03_17/output.%J/errors.%J`
+`bsub < run.sh -o /project/wolk/Prisma3T/relong/uploads_to_SCAN/2023_03_17/output.%J -e /project/wolk/Prisma3T/relong/uploads_to_SCAN/2023_03_17/errors.%J`
 
 Run.sh:
 - calls find_sessions_create_csv.py
