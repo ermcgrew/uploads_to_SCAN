@@ -8,7 +8,7 @@ import os
 from pandas.core.common import flatten
 
 
-def write_csv(data, scantype):
+def write_csv(data, scantype, download_directory):
     if scantype == "MRI":
         headernames = mri_columns
     elif scantype == "PET":
@@ -77,9 +77,10 @@ def format_times(time):
         datetime.strptime(time.split(".")[0], "%H%M%S"), "%H:%M:%S"
     )
 
-# for each subject, upload only if sessions are ABC, 2021 or later, 
-# have 3T with new protocol Accelerated Sagital MPRAGE file and at least one PET session
+
 def check_sessions(subject):
+    # for each subject, upload only if sessions are ABC, 2021 or later, 
+    # have 3T with new protocol Accelerated Sagital MPRAGE file and at least one PET session
     check_for_AccSag_acquisition = [[session.label for acquisition in session.acquisitions() if "Accelerated Sagittal MPRAGE (MSV21)" in acquisition.label] 
                 for session in subject.sessions() if "3T" in session.label and "ABC" in session.label]
     usable_sessions = list(flatten(check_for_AccSag_acquisition))
@@ -91,11 +92,83 @@ def check_sessions(subject):
             return(usable_sessions)
     
 
+def main():
+    # Access flywheel subject list
+    fw = flywheel.Client()
+    try:
+        project = fw.get_project("5c508d5fc2a4ad002d7628d8")  # NACC-SC
+    except flywheel.ApiException as e:
+        print(f"Error: {e}")
+
+    try:
+        subjects = project.subjects.iter_find()  #'created>2022-06-01'
+    except flywheel.ApiException as e:
+        print(f"Error: {e}")
+
+    #create folder to hold downloads
+    current_time = datetime.now().strftime("%Y_%m_%d")
+    download_directory = f"/project/wolk/Prisma3T/relong/uploads_to_SCAN/{current_time}"
+    # os.system(f'mkdir {download_directory}')
+
+    for subject in subjects:
+        print(f"Subject {subject.label}")
+        usable_sessions = check_sessions(subject)
+        if usable_sessions:
+            global subject_total 
+            subject_total += 1  
+            for session in subject.sessions():
+                if session.label in usable_sessions:
+                    #if session in master list, skip
+                    if session.label in sessions_uploaded:
+                        print(f"session {session.label} has already been added to SCAN")
+                    else:
+                        print(f"continuing to process {session.label}")
+                    if '3T' in session.label:
+                        for acquisition in session.acquisitions():
+                        # get both FLAIR and T1 scans
+                            if "Sagittal" in acquisition.label: 
+                                print(f"downloading {session.label} {acquisition.label}")
+                                global scan_total
+                                scan_total += 1
+        #                         acquisition_type = acquisition.label.split(' ')[2]
+        #                         acquisition_directory = download_directory + "/" + session.label + "_" + acquisition_type
+        #                         os.system(f'mkdir {acquisition_directory}')
+        #                         acquisition_file = acquisition_directory + "/" + acquisition_type + ".zip"
+        #                         fw.download_zip([acquisition], acquisition_file, include_types=['dicom'])
+        #                         ##if subject has x01, change to .01 for upload in mri_data_list
+        #                         mri_data_list = [subject.label, acquisition_directory, "No"]
+        #                         mri_list_to_write.append(dict(zip(mri_columns, mri_data_list)))
+        #                         ##add session name to master list
+                    elif 'PET' in session.label:
+                        for acquisition in session.acquisitions():
+                            if "BR-DY_CTAC" in acquisition.label and "LOCALIZER" not in acquisition.label:
+                                print(f"downloading {session.label} {acquisition.label}")
+                                scan_total += 1
+        #                         acquisition_directory = download_directory + "/" + session.label
+        #                         os.system(f'mkdir {acquisition_directory}')
+        #                         acquisition_file = acquisition_directory + "/" + "PET.zip"
+        #                         fw.download_zip([acquisition], acquisition_file, include_types=['dicom'])
+        #                         pet_data_list = [
+        #                             subject.label,
+        #                             acquisition_directory,
+        #                             str(session.timestamp)[:10]
+        #                         ]
+        #                         pet_metadata_list = find_pet_metadata(acquisition)
+        #                         pet_data_list.extend(pet_metadata_list)
+        #                         pet_list_to_write.append(dict(zip(pet_columms, pet_data_list)))
+        #                         ##add session to master list
+                else:
+                    continue
+        else:
+            continue
+
+
 #set up logging
 logging.basicConfig(format="%(levelname)s: %(message)s", level=logging.DEBUG)
 
 # Global variables
 subject_total = 0
+
 scan_total = 0
 mri_list_to_write = []
 pet_list_to_write = []
@@ -112,67 +185,18 @@ pet_columms = [
     "Comments",
 ]
 
-# Access flywheel subject list
-fw = flywheel.Client()
-try:
-    project = fw.get_project("5c508d5fc2a4ad002d7628d8")  # NACC-SC
-except flywheel.ApiException as e:
-    print(f"Error: {e}")
+sessions_uploaded=[]
+master_upload_list = f"/project/wolk/Prisma3T/relong/uploads_to_SCAN/sessions_uploaded_master.csv"
+with open(master_upload_list) as csv_file:
+    csv_reader = csv.reader(csv_file, delimiter=',')
+    for row in csv_reader:
+        sessions_uploaded.append(row[0])
 
-try:
-    subjects = project.subjects.iter_find()  #'created>2022-06-01'
-except flywheel.ApiException as e:
-    print(f"Error: {e}")
+# print(sessions_uploaded)
 
-#create folder to hold downloads
-current_time = datetime.now().strftime("%Y_%m_%d")
-download_directory = f"/project/wolk/Prisma3T/relong/uploads_to_SCAN/{current_time}"
-os.system(f'mkdir {download_directory}')
-
-for subject in subjects:
-    print(f"Subject {subject.label}")
-    usable_sessions = check_sessions(subject)
-    if usable_sessions:
-        subject_total += 1  
-        for session in subject.sessions():
-            if session.label in usable_sessions:
-                if '3T' in session.label:
-                    for acquisition in session.acquisitions():
-                    # get both FLAIR and T1 scans
-                        if "Sagittal" in acquisition.label: 
-                            print(f"downloading {session.label} {acquisition.label}")
-                            scan_total += 1
-                            acquisition_type = acquisition.label.split(' ')[2]
-                            acquisition_directory = download_directory + "/" + session.label + "_" + acquisition_type
-                            os.system(f'mkdir {acquisition_directory}')
-                            acquisition_file = acquisition_directory + "/" + acquisition_type + ".zip"
-                            fw.download_zip([acquisition], acquisition_file, include_types=['dicom'])
-                            mri_data_list = [subject.label, acquisition_directory, "No"]
-                            mri_list_to_write.append(dict(zip(mri_columns, mri_data_list)))
-                elif 'PET' in session.label:
-                    for acquisition in session.acquisitions():
-                        if "BR-DY_CTAC" in acquisition.label and "LOCALIZER" not in acquisition.label:
-                            print(f"downloading {session.label} {acquisition.label}")
-                            scan_total += 1
-                            acquisition_directory = download_directory + "/" + session.label
-                            os.system(f'mkdir {acquisition_directory}')
-                            acquisition_file = acquisition_directory + "/" + "PET.zip"
-                            fw.download_zip([acquisition], acquisition_file, include_types=['dicom'])
-                            pet_data_list = [
-                                subject.label,
-                                acquisition_directory,
-                                str(session.timestamp)[:10]
-                            ]
-                            pet_metadata_list = find_pet_metadata(acquisition)
-                            pet_data_list.extend(pet_metadata_list)
-                            pet_list_to_write.append(dict(zip(pet_columms, pet_data_list)))
-            else:
-                continue
-    else:
-        continue
-
+main()
 print(f"{subject_total} subjects have sessions to upload.")
 print(f"{scan_total} total scan files will be uploaded.")
 
-write_csv(mri_list_to_write, "MRI")
-write_csv(pet_list_to_write, "PET")
+# write_csv(mri_list_to_write, "MRI", download_directory)
+# write_csv(pet_list_to_write, "PET", download_directory)
