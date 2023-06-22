@@ -9,7 +9,7 @@ echo Running python script
 python find_sessions_create_csv.py
 
 download_directory=/project/wolk/Prisma3T/relong/uploads_to_SCAN
-### TODO: select current date directory in uploads_to_SCAN
+##TODO: select current date directory in uploads_to_SCAN
 #unzip dicom files and get csv file names for java call
 for dir in $download_directory/2023_03_17/* ; do 
     if [[ -d $dir ]] ; then 
