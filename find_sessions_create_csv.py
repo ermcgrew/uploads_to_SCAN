@@ -28,6 +28,7 @@ def write_to_upload_tracking_csv(info):
     with open(upload_tracking_file, "a", newline="") as csvfile:
         csvwriter = csv.writer(csvfile)
         csvwriter.writerow(info)
+        logging.debug(f"adding {info} to tracking csv.")
     return
 
 
@@ -106,6 +107,13 @@ def check_sessions(subject):
     
 
 def main():
+    #create folder to hold downloads
+    os.system(f'mkdir {download_directory}')
+
+    #make a copy of old tracking list in case it gets messed up during this run
+    backup_upload_tracking = upload_tracking_file.replace(".csv",f"_backupcopy_{current_time}.csv")
+    os.system(f"cp {upload_tracking_file} {backup_upload_tracking}")
+
     #list of sessions already uploaded to compare to
     sessions_uploaded = read_upload_tracking_csv()
 
@@ -116,7 +124,7 @@ def main():
     except flywheel.ApiException as e:
         print(f"Error: {e}")
     try:
-        subjects = project.subjects.iter_find('created>2023-01-01')  #'created>2022-06-01'
+        subjects = project.subjects.iter_find()  #'created>2022-06-01'
     except flywheel.ApiException as e:
         print(f"Error: {e}")
 
@@ -144,22 +152,22 @@ def main():
                                     logging.debug(f"downloading {session.label} {acquisition.label}")
                                     acquisition_type = acquisition.label.split(' ')[2]
                                     acquisition_directory = download_directory + "/" + session.label + "_" + acquisition_type
-                                    # os.system(f'mkdir {acquisition_directory}')
+                                    os.system(f'mkdir {acquisition_directory}')
                                     acquisition_file = acquisition_directory + "/" + acquisition_type + ".zip"
-                                    # fw.download_zip([acquisition], acquisition_file, include_types=['dicom'])
+                                    fw.download_zip([acquisition], acquisition_file, include_types=['dicom'])
                                     mri_data_list = [subjectindd, acquisition_directory, "No"]
                                     mri_list_to_write.append(dict(zip(mri_columns, mri_data_list)))
                                     addtototal_mri=[acquisition_type, session.label, subject.label, current_time]
-                                    # write_to_upload_tracking_csv(addtototal_mri)
+                                    write_to_upload_tracking_csv(addtototal_mri)
                                     
                         elif 'PET' in session.label:
                             for acquisition in session.acquisitions():
                                 if "BR-DY_CTAC" in acquisition.label and "LOCALIZER" not in acquisition.label:
                                     logging.debug(f"downloading {session.label} {acquisition.label}")
                                     acquisition_directory = download_directory + "/" + session.label
-                                    # os.system(f'mkdir {acquisition_directory}')
+                                    os.system(f'mkdir {acquisition_directory}')
                                     acquisition_file = acquisition_directory + "/" + "PET.zip"
-                                    # fw.download_zip([acquisition], acquisition_file, include_types=['dicom'])
+                                    fw.download_zip([acquisition], acquisition_file, include_types=['dicom'])
                                     pet_data_list = [
                                         subjectindd,
                                         acquisition_directory,
@@ -169,19 +177,16 @@ def main():
                                     pet_data_list.extend(pet_metadata_list)
                                     pet_list_to_write.append(dict(zip(pet_columms, pet_data_list)))
                                     addtototal_pet=[pet_metadata_list[0], session.label, subject.label, current_time]
-                                    # write_to_upload_tracking_csv(addtototal_pet)
+                                    write_to_upload_tracking_csv(addtototal_pet)
 
                 else:
                     continue
         else:
             continue
 
-    # write_upload_csv(mri_list_to_write, "MRI", download_directory)
-    # write_upload_csv(pet_list_to_write, "PET", download_directory)
+    write_upload_csv(mri_list_to_write, "MRI", download_directory)
+    write_upload_csv(pet_list_to_write, "PET", download_directory)
 
-
-#set up logging
-logging.basicConfig(format="%(levelname)s: %(message)s", level=logging.DEBUG)
 
 # Global variables
 mri_list_to_write = []
@@ -198,11 +203,13 @@ pet_columms = [
     "Emission Start Time",
     "Comments",
 ]
-upload_tracking_file = f"/project/wolk/Prisma3T/relong/uploads_to_SCAN/all_sessions_uploaded_20230317.csv"
-
-#create folder to hold downloads
+scan_directory = f"/project/wolk/Prisma3T/relong/uploads_to_SCAN"
+upload_tracking_file = f"{scan_directory}/all_sessions_uploaded.csv"
 current_time = datetime.now().strftime("%Y_%m_%d")
-download_directory = f"/project/wolk/Prisma3T/relong/uploads_to_SCAN/{current_time}"
-# os.system(f'mkdir {download_directory}')
+download_directory = f"{scan_directory}/{current_time}"
+
+#set up logging
+logging.basicConfig(filename=f"{scan_directory}/create_csv_{current_time}.log", filemode='w', format="%(levelname)s: %(message)s", level=logging.DEBUG)
+
 
 main()
