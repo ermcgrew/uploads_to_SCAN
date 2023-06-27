@@ -1,7 +1,6 @@
 # uploads_to_SCAN
 Program to find and upload SCAN-compliant data to IDA-LONI database from Univeristy of Pennsylvania ADRC.
 
-change download directory date in run.sh line 15
 On bscsub cluster:
 `bsub < run.sh -o /project/wolk/Prisma3T/relong/uploads_to_SCAN/2023_03_17/output.%J -e /project/wolk/Prisma3T/relong/uploads_to_SCAN/2023_03_17/errors.%J`
 

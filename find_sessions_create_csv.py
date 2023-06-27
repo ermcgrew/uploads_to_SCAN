@@ -8,30 +8,6 @@ import os
 from pandas.core.common import flatten
 
 
-def write_upload_csv(data, scantype, download_directory):
-    #write data to csvs to pass to SCAN uploader
-    if scantype == "MRI":
-        headernames = mri_columns
-    elif scantype == "PET":
-        headernames = pet_columms
-    time = datetime.now().strftime("%Y%m%d_%H%M")
-    filename = f"{download_directory}/{scantype}_sessions_for_SCAN_{time}.csv"
-    with open(filename, "w", newline="") as csvfile:
-        csvwriter = csv.DictWriter(csvfile, fieldnames=headernames)
-        csvwriter.writeheader()
-        csvwriter.writerows(data)
-    return
-
-
-def write_to_upload_tracking_csv(info):
-    #add new session info to upload tracker
-    with open(upload_tracking_file, "a", newline="") as csvfile:
-        csvwriter = csv.writer(csvfile)
-        csvwriter.writerow(info)
-        logging.debug(f"adding {info} to tracking csv.")
-    return
-
-
 def read_upload_tracking_csv():
     #read in list of sessions already uploaded
     sessions_uploaded=[]
@@ -42,6 +18,20 @@ def read_upload_tracking_csv():
 
     return sessions_uploaded
 
+ 
+def check_sessions(subject):
+    # for each subject, upload only if sessions are ABC, 2021 or later, 
+    # have 3T with new protocol Accelerated Sagital MPRAGE file and at least one PET session
+    check_for_AccSag_acquisition = [[session.label for acquisition in session.acquisitions() if "Accelerated Sagittal MPRAGE (MSV21)" in acquisition.label] 
+                for session in subject.sessions() if "3T" in session.label and "ABC" in session.label]
+    usable_sessions = list(flatten(check_for_AccSag_acquisition))
+    if usable_sessions:    
+        # print(f"Subject {subject.label} has AccSag file in 3T scan, checking for PET scans")
+        check_for_PET = [session.label for session in subject.sessions() if ("FBBPET" in session.label or "AV1451" in session.label) and "ABC" in session.label and session.timestamp >= datetime(2021,1,1,0,0,0,tzinfo=timezone.utc)]
+        if check_for_PET:
+            usable_sessions.extend(check_for_PET)
+            return(usable_sessions)
+    
 
 def find_pet_metadata(acquisition): 
     #parse through acquisition to get specific pet metadata info
@@ -91,20 +81,41 @@ def find_pet_metadata(acquisition):
     pet_metadata = [tracer, tracer_dose_mci, "000000", tracer_inj_time_formatted, emission_start_time_formatted]
     return pet_metadata
 
- 
-def check_sessions(subject):
-    # for each subject, upload only if sessions are ABC, 2021 or later, 
-    # have 3T with new protocol Accelerated Sagital MPRAGE file and at least one PET session
-    check_for_AccSag_acquisition = [[session.label for acquisition in session.acquisitions() if "Accelerated Sagittal MPRAGE (MSV21)" in acquisition.label] 
-                for session in subject.sessions() if "3T" in session.label and "ABC" in session.label]
-    usable_sessions = list(flatten(check_for_AccSag_acquisition))
-    if usable_sessions:    
-        # print(f"Subject {subject.label} has AccSag file in 3T scan, checking for PET scans")
-        check_for_PET = [session.label for session in subject.sessions() if ("FBBPET" in session.label or "AV1451" in session.label) and "ABC" in session.label and session.timestamp >= datetime(2021,1,1,0,0,0,tzinfo=timezone.utc)]
-        if check_for_PET:
-            usable_sessions.extend(check_for_PET)
-            return(usable_sessions)
-    
+
+def write_to_upload_tracking_csv(info):
+    #add new session info to upload tracker
+    with open(upload_tracking_file, "a", newline="") as csvfile:
+        csvwriter = csv.writer(csvfile)
+        csvwriter.writerow(info)
+        logging.debug(f"adding {info} to tracking csv.")
+    return
+
+
+def new_subjects(mrilist,petlist):
+    #make sure NACC packets are submitted & accepted so SCAN upload will go through
+    allsubs = list(set([x['Subject ID'] for x in mrilist] + [y['Subject ID'] for y in petlist]))
+    new_subs_file = f"{download_directory}/new_subjects_{current_time}.csv"
+    with open(new_subs_file, "a", newline="") as csvfile:
+        csvwriter = csv.writer(csvfile)
+        csvwriter.writerow(allsubs)
+        logging.debug(f"adding new subjects to csv for Nicole to check.")
+    return
+
+
+def write_upload_csv(data, scantype, download_directory):
+    #write data to csvs to pass to SCAN uploader
+    if scantype == "MRI":
+        headernames = mri_columns
+    elif scantype == "PET":
+        headernames = pet_columms
+    time = datetime.now().strftime("%Y%m%d_%H%M")
+    filename = f"{download_directory}/{scantype}_sessions_for_SCAN_{time}.csv"
+    with open(filename, "w", newline="") as csvfile:
+        csvwriter = csv.DictWriter(csvfile, fieldnames=headernames)
+        csvwriter.writeheader()
+        csvwriter.writerows(data)
+    return
+
 
 def main():
     #create folder to hold downloads
@@ -124,7 +135,7 @@ def main():
     except flywheel.ApiException as e:
         print(f"Error: {e}")
     try:
-        subjects = project.subjects.iter_find()  #'created>2022-06-01'
+        subjects = project.subjects.iter_find('created>2023-02-01')  #'created>2022-06-01'
     except flywheel.ApiException as e:
         print(f"Error: {e}")
 
@@ -184,6 +195,8 @@ def main():
         else:
             continue
 
+    new_subjects(mri_list_to_write,pet_list_to_write)
+
     write_upload_csv(mri_list_to_write, "MRI", download_directory)
     write_upload_csv(pet_list_to_write, "PET", download_directory)
 
@@ -211,5 +224,4 @@ download_directory = f"{scan_directory}/{current_time}"
 #set up logging
 logging.basicConfig(filename=f"{scan_directory}/create_csv_{current_time}.log", filemode='w', format="%(levelname)s: %(message)s", level=logging.DEBUG)
 
-
-main()
+# main()
