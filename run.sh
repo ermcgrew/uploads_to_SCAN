@@ -25,10 +25,6 @@ create_csvs(){
     echo Running python script
     # python find_sessions_create_csv.py
 
-    ##TODO: get list of subjects to check with nicole
-    filename='/project/wolk/Prisma3T/relong/uploads_to_SCAN/all_sessions_uploaded.csv'
-    # todaysubjects=$( cat $filename | grep $current_date | cut -f 3 -d "," | sort -u )
-    echo $( cat $filename | grep $this_date | cut -f 3 -d "," | sort -u )
 }
 
 upload_files(){
