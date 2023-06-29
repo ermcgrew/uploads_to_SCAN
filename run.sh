@@ -23,7 +23,7 @@ Help(){
 create_csvs(){
     module load python
     echo "Running python script find_sessions_create_csv.py."
-    # python find_sessions_create_csv.py
+    python find_sessions_create_csv.py
 }
 
 upload_files(){
@@ -32,8 +32,6 @@ upload_files(){
     this_date=$1
     download_directory=/project/wolk/Prisma3T/relong/uploads_to_SCAN
     current_date_directory="${download_directory}/${this_date}"
-
-    ##remove nacc stuff here?
 
     # parse tracking file
     /project/wolk/Prisma3T/relong/scripts/uploads_to_SCAN/parse_tracking_file.sh "$this_date" >> "$download_directory/stats_${this_date}.txt"
