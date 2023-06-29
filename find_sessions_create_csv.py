@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 import csv
 from datetime import datetime,timezone
@@ -94,7 +94,7 @@ def write_to_upload_tracking_csv(info):
 def new_subjects(mrilist,petlist):
     #make sure NACC packets are submitted & accepted so SCAN upload will go through
     allsubs = list(set([x['Subject ID'] for x in mrilist] + [y['Subject ID'] for y in petlist]))
-    new_subs_file = f"{download_directory}/new_subjects_{current_time}.csv"
+    new_subs_file = f"{download_directory}/new_subjects_{current_date}.csv"
     with open(new_subs_file, "a", newline="") as csvfile:
         csvwriter = csv.writer(csvfile)
         csvwriter.writerow(allsubs)
@@ -118,11 +118,8 @@ def write_upload_csv(data, scantype, download_directory):
 
 
 def main():
-    #create folder to hold downloads
-    os.system(f'mkdir {download_directory}')
-
     #make a copy of old tracking list in case it gets messed up during this run
-    backup_upload_tracking = upload_tracking_file.replace(".csv",f"_backupcopy_{current_time}.csv")
+    backup_upload_tracking = upload_tracking_file.replace(".csv",f"_backupcopy_{current_date}.csv")
     os.system(f"cp {upload_tracking_file} {backup_upload_tracking}")
 
     #list of sessions already uploaded to compare to
@@ -135,7 +132,7 @@ def main():
     except flywheel.ApiException as e:
         print(f"Error: {e}")
     try:
-        subjects = project.subjects.iter_find('created>2023-02-01')  #'created>2022-06-01'
+        subjects = project.subjects.iter_find()  #'created>2023-01-01'
     except flywheel.ApiException as e:
         print(f"Error: {e}")
 
@@ -168,7 +165,7 @@ def main():
                                     fw.download_zip([acquisition], acquisition_file, include_types=['dicom'])
                                     mri_data_list = [subjectindd, acquisition_directory, "No"]
                                     mri_list_to_write.append(dict(zip(mri_columns, mri_data_list)))
-                                    addtototal_mri=[acquisition_type, session.label, subject.label, current_time]
+                                    addtototal_mri=[acquisition_type, session.label, subject.label, current_date]
                                     write_to_upload_tracking_csv(addtototal_mri)
                                     
                         elif 'PET' in session.label:
@@ -187,7 +184,7 @@ def main():
                                     pet_metadata_list = find_pet_metadata(acquisition)
                                     pet_data_list.extend(pet_metadata_list)
                                     pet_list_to_write.append(dict(zip(pet_columms, pet_data_list)))
-                                    addtototal_pet=[pet_metadata_list[0], session.label, subject.label, current_time]
+                                    addtototal_pet=[pet_metadata_list[0], session.label, subject.label, current_date]
                                     write_to_upload_tracking_csv(addtototal_pet)
 
                 else:
@@ -218,10 +215,13 @@ pet_columms = [
 ]
 scan_directory = f"/project/wolk/Prisma3T/relong/uploads_to_SCAN"
 upload_tracking_file = f"{scan_directory}/all_sessions_uploaded.csv"
-current_time = datetime.now().strftime("%Y_%m_%d")
-download_directory = f"{scan_directory}/{current_time}"
+current_date = datetime.now().strftime("%Y_%m_%d")
+download_directory = f"{scan_directory}/{current_date}"
+
+#create folder to hold downloads
+os.system(f'mkdir {download_directory}')
 
 #set up logging
-logging.basicConfig(filename=f"{scan_directory}/create_csv_{current_time}.log", filemode='w', format="%(levelname)s: %(message)s", level=logging.DEBUG)
+logging.basicConfig(filename=f"{download_directory}/create_csv_{current_date}.log", filemode='w', format="%(levelname)s: %(message)s", level=logging.DEBUG)
 
-# main()
+main()
