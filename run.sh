@@ -82,7 +82,8 @@ while getopts ':cd:hu' option; do
         c) 
             bsub -N create_csvs;;    
         u) 
-            bsub -N -o "/project/wolk/Prisma3T/relong/uploads_to_SCAN/${this_date}/upload_job_output.%J" upload_files $this_date ;;
+            bsub -N -o "/project/wolk/Prisma3T/relong/uploads_to_SCAN/${this_date}/upload_job_output2.%J" upload_files $this_date ;;
+            # upload_files $this_date ;;
         \?) 
             echo "Error: Invalid option"
             exit;;

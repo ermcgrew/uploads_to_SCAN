@@ -140,7 +140,7 @@ def main():
         print(f"Subject {subject.label}")
         #if subject has x01, change to .01 for upload csv, to match NACC IDs (subject.label is always a string)
         if "x" in subject.label:
-            subjectindd=subject.label.replace("x",'.')
+            subjectindd=subject.label.replace("x",'_')
         else:
             subjectindd=subject.label
 
