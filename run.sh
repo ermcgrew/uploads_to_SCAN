@@ -4,13 +4,14 @@ Help(){
     echo "This program identifies files for SCAN project and uploads them to SCAN website."
     echo 
     echo "Options:"
+    echo "-a     Calls add_info function to add NACCIDs to both sheets and dosage computer info to PET csv."
     echo "-c     Calls create_csvs function to review Flywheel data for qualifying files and create csv to upload with."
     echo "-u     Calls upload_files function to create report on upload numbers,"
     echo "       unzips dicom files and uploads dicom files to ida.loni.usc.edu"
     echo "-d     Date from folder created in create_csvs function. Required for upload_files function. Format: YYYY_MM_DD"
     echo "-h     Print this help."
     echo 
-    echo "Both functions are submitted to cluster bscsub queue."
+    echo "All functions are submitted to cluster bscsub queue."
     echo 
     echo "Before running upload_files function, use dosage computer reports to fill in missing PET time column "
     echo "and get status of NACC packets for all subjects so any with incomplete submissions can be removed from upload list." 
@@ -24,6 +25,12 @@ create_csvs(){
     module load python
     echo "Running python script find_sessions_create_csv.py."
     python find_sessions_create_csv.py
+}
+
+add_info(){
+    module load python
+    echo "Running python script add_dosage_naccid.py."
+    python add_dosage_naccid.py
 }
 
 upload_files(){
@@ -68,22 +75,24 @@ upload_files(){
 }
 
 #export functions for use in cluster calls
-export -f upload_files
 export -f create_csvs
+export -f add_info
+export -f upload_files
 
 # Get the options
-while getopts ':cd:hu' option; do
+while getopts ':acd:hu' option; do
     case "$option" in
         h) 
             Help
             exit;;
+        a) 
+            bsub -N add_info;;
         d) 
             this_date="$OPTARG" ;;
         c) 
             bsub -N create_csvs;;    
         u) 
             bsub -N -o "/project/wolk/Prisma3T/relong/uploads_to_SCAN/${this_date}/upload_job_output2.%J" upload_files $this_date ;;
-            # upload_files $this_date ;;
         \?) 
             echo "Error: Invalid option"
             exit;;

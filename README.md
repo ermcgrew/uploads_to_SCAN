@@ -2,6 +2,7 @@
 Program to find and upload SCAN-compliant data to IDA-LONI database from Univeristy of Pennsylvania ADRC.
 
 ## Options for run.sh
+- a: Calls add_info function to add NACCIDs to both sheets and dosage computer info to PET csv. 
 - c: Calls create_csvs function to review Flywheel data for qualifying files and create csv to upload with.
 - u: Calls upload_files function to create report on upload numbers, unzips dicom files and uploads dicom files to ida.loni.usc.edu.
 - d: Date from folder created in create_csvs function. Required for upload_files function. Format: YYYY_MM_DD.
@@ -9,6 +10,10 @@ Program to find and upload SCAN-compliant data to IDA-LONI database from Univeri
 
 ## Functions in run.sh
 Functions are submitted to bscsub cluster queue to run.
+
+**add_info** calls *add_dosage_naccid.py*, which: 
+  - for PET csv, adds missing Dose Time, Inj Time, and Dose Assay, based on dosage_computer_info.csv
+  - for PET and MRI csv, adds NACCID to Subject ID field. 
 
 **create_csvs** calls *find_sessions_create_csv.py*, which:
   - Accesses NACC-SC flywheel project 
@@ -25,16 +30,15 @@ Functions are submitted to bscsub cluster queue to run.
 ***
 ## Procedure
 1. Every 3 months, do `bash run.sh -c` to check for new sessions and create csvs.
-2. Edits to PET csv:
-    - Download PET csv
-    - Get dosage computer data from Ilya
-    - Convert pdf to excel and add new info to total doc
-    - Match dates/times to add info to upload csv using *../Box/SCAN_uploading/dosage_computer_reports/find from dosage computer.ipynb*
-    - upload csv back to cluster
-3. Check for any subjects without NACC packet:
-    - Download list of subjects 
-    - Check subject packet status with Nicole
-    - Remove any subjects that haven’t been submitted to NACC yet using code in *remove_nacc_issues.sh*
+2. Dosage computer data 
+    - Get dosage computer data from Ilya for the last 3 months.
+    - Convert pdf to excel.
+    - Edit columns and merge into existing dosage_master.csv using *../Box/SCAN_uploading/dosage_computer_reports/find from dosage computer.ipynb*
+    - upload new dosage_master.csv to cluster *uploads_to_SCAN/YYYY_MM_DD/*
+3. NACCIDs:
+    - Ask Nicole for updated nacc_id to PTID mapping.
+    - upload new nacc_id_ptid.csv to cluster *uploads_to_SCAN/YYYY_MM_DD/*
+4. `bash run.sh -a` 
 4. `bash run.sh -d YYYY_MM_DD -u` 
 5. Download *stats_YYYY_MM_DD.txt* and send to NI core slack channel.
 ***
