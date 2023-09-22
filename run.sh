@@ -54,9 +54,9 @@ upload_files(){
             rm *.zip
             rm -r tmp
         elif [[ -f $dir ]] ; then
-            if [[ $(basename $dir) =~ "MRI" ]] ; then
+            if [[ $(basename $dir) =~ "MRI" &&  $(basename $dir) =~ "naccid_added" ]] ; then
                 mrifile=$dir
-            elif [[ $(basename $dir) =~ "PET"  &&  $(basename $dir) =~ "dosagetimeadded" ]] ; then
+            elif [[ $(basename $dir) =~ "PET"  &&  $(basename $dir) =~ "naccid_added" ]] ; then
                 petfile=$dir
             fi
         fi  
