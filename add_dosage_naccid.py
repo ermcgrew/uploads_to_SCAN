@@ -32,10 +32,11 @@ nacc_id=pd.read_csv(os.path.join(upload_dir_current,nacc_id_csv))
 # print(petinfo.info())
 # print(dosage_master.head())
 
+
 def add_nacc_id(df):
     count = 0
     for index,row in df.iterrows():
-        ptid = row['Subject ID']
+        ptid = str(row['Subject ID'])
         match = nacc_id.loc[nacc_id['PTID'] == ptid]
         if len(match) < 1:
             # print("drop this row, cannot upload without NACCID")
@@ -84,14 +85,21 @@ for index,row in petinfo.iterrows():
                 print(f"row index {index}, ID {row['Subject ID']}, has multiple date/tracer matches in dosage.csv")
         else:
             select_match=match.loc[match['Inj.Tm'] == shortinjtime]
-            test=select_match['IRBnum'].values[0]
-            if len(select_match) == 1 and irb_dict[test] == studytracer:
-                #add Assay Time
-                timetoadd = select_match['Assay Time'].values[0] + ":00"
-                # print(timetoadd)
-                petinfo.at[index,'Tracer Dose Time'] = timetoadd
+            # print(select_match)
+            if len(select_match) < 1:
+                print(f"Row index {index}, ID {row['Subject ID']}, no match to injection time")
             else:
-                print(f"Row index {index}, ID {row['Subject ID']}, match unclear")
+                test=select_match['IRBnum'].values[0]
+                if str(test) == 'nan':
+                    print(f"Row index {index}, ID {row['Subject ID']}, match unclear, IRB num is NAN")
+                else:
+                    if len(select_match) == 1 and irb_dict[test] == studytracer:
+                        #add Assay Time
+                        timetoadd = select_match['Assay Time'].values[0] + ":00"
+                        # print(timetoadd)
+                        petinfo.at[index,'Tracer Dose Time'] = timetoadd
+                    else:
+                        print(f"Row index {index}, ID {row['Subject ID']}, match unclear")
 
 ##Add NACCID to PET csv
 petinfo_naccid = add_nacc_id(petinfo)
