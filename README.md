@@ -33,14 +33,15 @@ Functions are submitted to bscsub cluster queue to run.
 2. Dosage computer data 
     - Get dosage computer data from Ilya for the last 3 months.
     - Convert pdf to excel.
-    - Edit columns and merge into existing dosage_master.csv using *../Box/SCAN_uploading/dosage_computer_reports/find from dosage computer.ipynb*
+    - Edit columns and merge into existing dosage_master.csv using a copy of *../Box/SCAN_uploading/dosage_computer_reports/find from dosage computer_YYYYMMDD.ipynb*
     - upload new dosage_master.csv to cluster *uploads_to_SCAN/YYYY_MM_DD/*
 3. NACCIDs:
     - Ask Nicole for updated nacc_id to PTID mapping.
     - upload new nacc_id_ptid.csv to cluster *uploads_to_SCAN/YYYY_MM_DD/*
 4. `bash run.sh -a` 
-4. `bash run.sh -d YYYY_MM_DD -u` 
-5. Download *stats_YYYY_MM_DD.txt* and send to NI core slack channel.
+5. For any sessions still missing PET data, check manually and fill in or remove row from upload.
+6. `bash run.sh -d YYYY_MM_DD -u` 
+7. Download *stats_YYYY_MM_DD.txt* and send to NI core slack channel.
 ***
 ## Abbreviations
 - ADRC: Alzheimer's Disease Research Center
