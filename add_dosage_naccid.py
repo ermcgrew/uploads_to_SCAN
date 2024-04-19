@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import logging
 import pandas as pd
 import os
 
@@ -16,6 +17,8 @@ upload_dir = "/project/wolk/Prisma3T/relong/uploads_to_SCAN"
 all_dirs = [x for x in os.listdir(upload_dir) if ".txt" not in x and ".csv" not in x]
 all_dirs.sort(reverse=True)
 upload_dir_current = os.path.join(upload_dir,all_dirs[0])
+
+logging.basicConfig(filename=f"{upload_dir_current}/add_info.log", filemode='w', format="%(levelname)s: %(message)s", level=logging.DEBUG)
 
 pet_csv = [x for x in os.listdir(upload_dir_current) if "PET_sessions" in x][0]
 mri_csv = [x for x in os.listdir(upload_dir_current) if "MRI_sessions" in x][0]
@@ -39,13 +42,12 @@ def add_nacc_id(df):
         ptid = str(row['Subject ID'])
         match = nacc_id.loc[nacc_id['PTID'] == ptid]
         if len(match) < 1:
-            # print("drop this row, cannot upload without NACCID")
+            logging.debug(f"drop row {index}:{row['Subject ID']}:no NACCID match")
             df.drop([index],inplace=True)
             count += 1
         else:
-            # print('match found')
             df.at[index,'Subject ID'] = ptid + "+" + match['NACCID'].values[0]
-    print(f"Dropped {count} sessions from df for not having NACCID yet.")
+    logging.debug(f"Dropped {count} sessions from df for not having NACCID yet.")
     return df
 
 
@@ -58,7 +60,7 @@ for index,row in petinfo.iterrows():
     #match on date and tracer
     match=dosage_master.loc[(dosage_master['Assay Date'] == row['Scan Date']) & (dosage_master['Tracer'] == row['Tracer'])]
     if len(match) == 0:
-        print(f"row index {index}, ID {row['Subject ID']}, has no date/tracer match in dosage csv.")
+        logging.debug(f"row index {index}, ID {row['Subject ID']}, date {row['Scan Date']} has no date/tracer match in dosage csv.")
         continue
     else:
         irbnum=match['IRBnum'].values
@@ -82,16 +84,16 @@ for index,row in petinfo.iterrows():
                 petinfo.at[index,'Tracer Inj Time'] = injtimetoadd
                 petinfo.at[index,'Tracer Dose Assay'] = injamttoadd            
             else:
-                print(f"row index {index}, ID {row['Subject ID']}, has multiple date/tracer matches in dosage.csv")
+                logging.debug(f"row index {index}, ID {row['Subject ID']}, date {row['Scan Date']} has multiple date/tracer matches in dosage.csv")
         else:
             select_match=match.loc[match['Inj.Tm'] == shortinjtime]
             # print(select_match)
             if len(select_match) < 1:
-                print(f"Row index {index}, ID {row['Subject ID']}, no match to injection time")
+                logging.debug(f"Row index {index}, ID {row['Subject ID']}, date {row['Scan Date']} no match to injection time")
             else:
                 test=select_match['IRBnum'].values[0]
                 if str(test) == 'nan':
-                    print(f"Row index {index}, ID {row['Subject ID']}, match unclear, IRB num is NAN")
+                    logging.debug(f"Row index {index}, ID {row['Subject ID']}, date {row['Scan Date']} match unclear, IRB num is NAN")
                 else:
                     if len(select_match) == 1 and irb_dict[test] == studytracer:
                         #add Assay Time
@@ -99,7 +101,7 @@ for index,row in petinfo.iterrows():
                         # print(timetoadd)
                         petinfo.at[index,'Tracer Dose Time'] = timetoadd
                     else:
-                        print(f"Row index {index}, ID {row['Subject ID']}, match unclear")
+                        logging.debug(f"Row index {index}, ID {row['Subject ID']}, date {row['Scan Date']} match unclear")
 
 ##Add NACCID to PET csv
 petinfo_naccid = add_nacc_id(petinfo)

@@ -23,7 +23,7 @@ Help(){
 
 create_csvs(){
     module load python
-    echo "Running python script find_sessions_create_csv.py."
+    echo "Running python script find_sessions_create_csv.py." 
     python find_sessions_create_csv.py
 }
 

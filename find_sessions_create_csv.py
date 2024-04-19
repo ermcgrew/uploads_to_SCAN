@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import csv
 from datetime import datetime,timezone
@@ -76,8 +76,15 @@ def find_pet_metadata(acquisition):
     except KeyError as e:
         emission_start_time = ""
         logging.warning(f"Key {e} doesn't exist") 
-    emission_start_time_formatted = emission_start_time.split(".")[0]    
-    
+     
+    emission_start_time_nodecimal = emission_start_time.split(".")[0]
+    if ":" not in emission_start_time_nodecimal:
+        emission_start_time_formatted=emission_start_time_nodecimal[0:2] + ":" + emission_start_time_nodecimal[2:4] + ":" + emission_start_time_nodecimal[4:]
+    else:
+        emission_start_time_formatted=emission_start_time_nodecimal
+    if len(emission_start_time_formatted) != 8:
+        logging.warning(f"Emission Start Time incorrect, check all dicom times for correction")
+
     pet_metadata = [tracer, tracer_dose_mci, "000000", tracer_inj_time_formatted, emission_start_time_formatted]
     return pet_metadata
 
