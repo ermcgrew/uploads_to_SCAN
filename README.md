@@ -28,8 +28,9 @@ Functions are submitted to bscsub cluster queue to run.
   - calls *tag_fwsession_update_tracking.py* to add successfully uploaded files to tracking csv and tag the sessions as shared in flywheel.
   - calls *parse_tracking_files.sh* to produce statistics report on how many uploads have been done
 
-## Other files
+### Other files
 *find_start_time_from_dicoms.py*: parse dicom files to find start time when flywheel metadata is not sufficient. Run manually.
+
 *uploads_to_SCAN.py*: shared variables of cluster file locations and shared function to find most recent upload directory.
 
 ***
