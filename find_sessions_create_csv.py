@@ -6,6 +6,7 @@ import flywheel
 import logging
 import os
 from pandas.core.common import flatten
+from uploads_to_SCAN import *
 
 
 def read_upload_tracking_csv():
@@ -89,26 +90,6 @@ def find_pet_metadata(acquisition):
     return pet_metadata
 
 
-def write_to_upload_tracking_csv(info):
-    #add new session info to upload tracker
-    with open(upload_tracking_file, "a", newline="") as csvfile:
-        csvwriter = csv.writer(csvfile)
-        csvwriter.writerow(info)
-        logging.debug(f"adding {info} to tracking csv.")
-    return
-
-
-def new_subjects(mrilist,petlist):
-    #make sure NACC packets are submitted & accepted so SCAN upload will go through
-    allsubs = list(set([x['Subject ID'] for x in mrilist] + [y['Subject ID'] for y in petlist]))
-    new_subs_file = f"{download_directory}/new_subjects_{current_date}.csv"
-    with open(new_subs_file, "a", newline="") as csvfile:
-        csvwriter = csv.writer(csvfile)
-        csvwriter.writerow(allsubs)
-        logging.debug(f"adding new subjects to csv for Nicole to check.")
-    return
-
-
 def write_upload_csv(data, scantype, download_directory):
     #write data to csvs to pass to SCAN uploader
     if scantype == "MRI":
@@ -172,8 +153,6 @@ def main():
                                     fw.download_zip([acquisition], acquisition_file, include_types=['dicom'])
                                     mri_data_list = [subjectindd, acquisition_directory, "No"]
                                     mri_list_to_write.append(dict(zip(mri_columns, mri_data_list)))
-                                    addtototal_mri=[acquisition_type, session.label, subject.label, current_date]
-                                    write_to_upload_tracking_csv(addtototal_mri)
                                     
                         elif 'PET' in session.label:
                             for acquisition in session.acquisitions():
@@ -191,15 +170,11 @@ def main():
                                     pet_metadata_list = find_pet_metadata(acquisition)
                                     pet_data_list.extend(pet_metadata_list)
                                     pet_list_to_write.append(dict(zip(pet_columms, pet_data_list)))
-                                    addtototal_pet=[pet_metadata_list[0], session.label, subject.label, current_date]
-                                    write_to_upload_tracking_csv(addtototal_pet)
 
                 else:
                     continue
         else:
             continue
-
-    new_subjects(mri_list_to_write,pet_list_to_write)
 
     write_upload_csv(mri_list_to_write, "MRI", download_directory)
     write_upload_csv(pet_list_to_write, "PET", download_directory)
@@ -220,8 +195,7 @@ pet_columms = [
     "Emission Start Time",
     "Comments",
 ]
-scan_directory = f"/project/wolk/Prisma3T/relong/uploads_to_SCAN"
-upload_tracking_file = f"{scan_directory}/all_sessions_uploaded.csv"
+
 current_date = datetime.now().strftime("%Y_%m_%d")
 download_directory = f"{scan_directory}/{current_date}"
 
