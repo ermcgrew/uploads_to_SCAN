@@ -98,17 +98,6 @@ def write_to_upload_tracking_csv(info):
     return
 
 
-def new_subjects(mrilist,petlist):
-    #make sure NACC packets are submitted & accepted so SCAN upload will go through
-    allsubs = list(set([x['Subject ID'] for x in mrilist] + [y['Subject ID'] for y in petlist]))
-    new_subs_file = f"{download_directory}/new_subjects_{current_date}.csv"
-    with open(new_subs_file, "a", newline="") as csvfile:
-        csvwriter = csv.writer(csvfile)
-        csvwriter.writerow(allsubs)
-        logging.debug(f"adding new subjects to csv for Nicole to check.")
-    return
-
-
 def write_upload_csv(data, scantype, download_directory):
     #write data to csvs to pass to SCAN uploader
     if scantype == "MRI":
@@ -198,8 +187,6 @@ def main():
                     continue
         else:
             continue
-
-    new_subjects(mri_list_to_write,pet_list_to_write)
 
     write_upload_csv(mri_list_to_write, "MRI", download_directory)
     write_upload_csv(pet_list_to_write, "PET", download_directory)
