@@ -73,7 +73,7 @@ upload_files(){
 
     sleep 2
     module load python
-    python fw_tag_session.py
+    python tag_fwsession_update_tracking.py
 
     # parse tracking file
     /project/wolk/Prisma3T/relong/scripts/uploads_to_SCAN/parse_tracking_file.sh "$this_date" >> "$download_directory/stats_${this_date}.txt"
