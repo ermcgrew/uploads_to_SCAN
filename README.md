@@ -18,14 +18,19 @@ Functions are submitted to bscsub cluster queue to run.
 **create_csvs** calls *find_sessions_create_csv.py*, which:
   - Accesses NACC-SC flywheel project 
   - checks for subjects with MRI-PET pairs or triplets with correct 3T T1 protocol obtained after 2021 
+  - compares with tracking csv of already uploaded files
   - downloads dicoms of acquisitions 
   - collects file information and metadata and writes to uploader csv 
-  - adds new file names to csv all_sessions_uploaded.csv to track uploads
   
 **upload_files**
-  - calls *parse_tracking_files.sh* to produce statistics report on how many uploads have been done
   - unzips dicom files
   - calls *IdaUploader.jar* to upload files to SCAN
+  - calls *tag_fwsession_update_tracking.py* to add successfully uploaded files to tracking csv and tag the sessions as shared in flywheel.
+  - calls *parse_tracking_files.sh* to produce statistics report on how many uploads have been done
+
+## Other files
+*find_start_time_from_dicoms.py*: parse dicom files to find start time when flywheel metadata is not sufficient. Run manually.
+*uploads_to_SCAN.py*: shared variables of cluster file locations and shared function to find most recent upload directory.
 
 ***
 ## Procedure
