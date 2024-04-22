@@ -18,18 +18,18 @@ def write_to_upload_tracking_csv(info):
 
 def main():
     current_upload_dir = get_current_upload_dir()
-    
-    receipt_files = [os.path.join(current_upload_dir,x) for x in os.listdir(current_upload_dir) if "receipt" in x]
-    logging.basicConfig(filename=f"{current_upload_dir}/update_tracking.log", filemode='w', format="%(levelname)s: %(message)s", level=logging.DEBUG)
+    logging.basicConfig(filename=f"{current_upload_dir}/update_tracking_tag_in_fw.log", filemode='w', format="%(levelname)s: %(message)s", level=logging.DEBUG)
     
     fw = flywheel.Client()
     try:
         project = fw.get_project("5c508d5fc2a4ad002d7628d8")  # NACC-SC
     except flywheel.ApiException as e:
         logging.error(f"Flywheel Connection Error: {e}")
-
+    
+    receipt_files = [os.path.join(current_upload_dir,x) for x in os.listdir(current_upload_dir) if "receipt" in x]
     for file in receipt_files:
         receipt_df=pd.read_csv(file)
+        logging.info(f"Reading receipt file: {file}")
         receipt_df.info()
         for index, row in receipt_df.iterrows():
             filepath = row['Directory']
@@ -48,8 +48,8 @@ def main():
                 upload_dir_date = current_upload_dir.split("/")[-1]
                 addtototal=[acquisition_type, session_label, subject, upload_dir_date]
                 write_to_upload_tracking_csv(addtototal)
-            
-                # tag session in flywheel
+
+                ### tag session in flywheel
                 try:
                     sessions = project.sessions.find(f'label={session_label}')  
                 except flywheel.ApiException as e:

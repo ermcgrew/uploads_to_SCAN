@@ -5,7 +5,7 @@
 import os
 
 scan_directory = f"/project/wolk/Prisma3T/relong/uploads_to_SCAN"
-upload_tracking_file = f"{scan_directory}/all_sessions_uploaded_tester.csv"
+upload_tracking_file = f"{scan_directory}/all_sessions_uploaded.csv"
 
 def get_current_upload_dir():
     all_dirs = [x for x in os.listdir(scan_directory) if ".txt" not in x and ".csv" not in x]

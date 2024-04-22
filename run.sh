@@ -78,7 +78,6 @@ upload_files(){
     # parse tracking file
     /project/wolk/Prisma3T/relong/scripts/uploads_to_SCAN/parse_tracking_file.sh "$this_date" >> "$download_directory/stats_${this_date}.txt"
 
-
 }
 
 #export functions for use in cluster calls
