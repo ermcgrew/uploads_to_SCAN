@@ -40,9 +40,7 @@ upload_files(){
     download_directory=/project/wolk/Prisma3T/relong/uploads_to_SCAN
     current_date_directory="${download_directory}/${this_date}"
 
-    # parse tracking file
-    /project/wolk/Prisma3T/relong/scripts/uploads_to_SCAN/parse_tracking_file.sh "$this_date" >> "$download_directory/stats_${this_date}.txt"
-
+   
     #unzip dicom files and get csv file names for java call
     for dir in $current_date_directory/* ; do 
         if [[ -d $dir ]] ; then 
@@ -71,6 +69,15 @@ upload_files(){
         --email=$email --password=$password --project=SCAN --site=ADC21 $mrifile
     java -jar /project/wolk/Prisma3T/relong/scripts/uploads_to_SCAN/IdaUploader_02Dec2022.jar \
         --email=$email --password=$password --project=SCAN --site=ADC21 $petfile
+
+
+    sleep 2
+    module load python
+    python fw_tag_session.py
+
+    # parse tracking file
+    /project/wolk/Prisma3T/relong/scripts/uploads_to_SCAN/parse_tracking_file.sh "$this_date" >> "$download_directory/stats_${this_date}.txt"
+
 
 }
 
