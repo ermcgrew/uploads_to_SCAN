@@ -6,7 +6,7 @@ import os
 from uploads_to_SCAN import *
 
 
-def add_nacc_id(df):
+def add_nacc_id(df,nacc_id):
     count = 0
     for index,row in df.iterrows():
         ptid = str(row['Subject ID'])
@@ -93,17 +93,18 @@ def main():
 
     ## Load NACCID csv
     nacc_id_csv = [ x for x in os.listdir(upload_dir_current) if "nacc" in x][0]
-    nacc_id=pd.read_csv(os.path.join(upload_dir_current,nacc_id_csv))
+    nacc_id = pd.read_csv(os.path.join(upload_dir_current,nacc_id_csv))
+    # print(nacc_id.info())
    
     ##Add NACCID to PET csv
-    petinfo_naccid = add_nacc_id(petinfo_dosage)
+    petinfo_naccid = add_nacc_id(petinfo_dosage, nacc_id)
     pet_csv_updated = pet_csv.split('.')[0] + "_dosagetime_naccid_added.csv"
     petinfo_naccid.to_csv(os.path.join(upload_dir_current,pet_csv_updated),index=False,header=True)
 
     ##Add NACCID to MRI csv
     mri_csv = [x for x in os.listdir(upload_dir_current) if "MRI_sessions" in x][0]
     mriinfo=pd.read_csv(os.path.join(upload_dir_current,mri_csv))
-    mriinfo_naccid = add_nacc_id(mriinfo)
+    mriinfo_naccid = add_nacc_id(mriinfo, nacc_id)
     mri_csv_updated = mri_csv.split('.')[0] + "_naccid_added.csv"
     mriinfo_naccid.to_csv(os.path.join(upload_dir_current,mri_csv_updated),index=False,header=True)
 
