@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from datetime import datetime
 import logging
 import pandas as pd
 import os
@@ -80,7 +81,8 @@ def add_dosage_info(petinfo,dosage_master):
 
 def main():
     upload_dir_current = get_current_upload_dir()
-    logging.basicConfig(filename=f"{upload_dir_current}/add_info.log", filemode='w', format="%(levelname)s: %(message)s", level=logging.DEBUG)
+    current_date = datetime.now().strftime("%Y_%m_%d")
+    logging.basicConfig(filename=f"{upload_dir_current}/add_info_{current_date}.log", filemode='w', format="%(levelname)s: %(message)s", level=logging.DEBUG)
 
     ## Load PET csv and Dosage csv
     pet_csv = [x for x in os.listdir(upload_dir_current) if "PET_sessions" in x][0]
