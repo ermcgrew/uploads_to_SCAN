@@ -7,10 +7,18 @@ import os
 from uploads_to_SCAN import *
 
 
+uses_ptid_instead_of_indd={101545:4219, 107486:4029, 113612_01:8680}
+
+
 def add_nacc_id(df,nacc_id):
     count = 0
     for index,row in df.iterrows():
         ptid = str(row['Subject ID'])
+
+        if int(ptid) in list(uses_ptid_instead_of_indd.keys()):
+            ptid = str(uses_ptid_instead_of_indd[int(ptid)])
+            logging.debug(f"row {index}:{row['Subject ID']}:Uses PTID instead of INDDID for NACC mapping.")
+
         match = nacc_id.loc[nacc_id['PTID'] == ptid]
         if len(match) < 1:
             logging.debug(f"drop row {index}:{row['Subject ID']}:no NACCID match")
@@ -28,7 +36,9 @@ def add_dosage_info(petinfo,dosage_master):
         844403: 'ABCD2 Flortaucipir',   
         825943: "ABC Florbetaben", 
         825944: 'ABC Flortaucipir',
-        822544: 'ABC Flortaucipir'
+        822544: 'ABC Flortaucipir', 
+        850160: "MPC Florbetaben",
+        850679: "MPC Flortaucipir"
     }
 
     for index,row in petinfo.iterrows():
@@ -55,7 +65,7 @@ def add_dosage_info(petinfo,dosage_master):
                     #add Assay Time, Inj.Tm, Inj.Act
                     assaytimetoadd = smaller_match['Assay Time'].values[0] + ":00"
                     injtimetoadd = smaller_match['Inj.Tm'].values[0] + ":00"
-                    injamttoadd = round(float(smaller_match['Inj.Act'].values[0].split(" ")[0]),1) ##rounding, drop unit
+                    injamttoadd = round(float(smaller_match['Inj.Act'].values[0]),1)
                     petinfo.at[index,'Tracer Dose Time'] = assaytimetoadd
                     petinfo.at[index,'Tracer Inj Time'] = injtimetoadd
                     petinfo.at[index,'Tracer Dose Assay'] = injamttoadd            
@@ -96,10 +106,10 @@ def main():
     ## Load NACCID csv
     nacc_id_csv = [ x for x in os.listdir(upload_dir_current) if "nacc" in x][0]
     nacc_id = pd.read_csv(os.path.join(upload_dir_current,nacc_id_csv))
-    # print(nacc_id.info())
-   
+    
     ##Add NACCID to PET csv
     petinfo_naccid = add_nacc_id(petinfo_dosage, nacc_id)
+    petinfo_naccid.info()
     pet_csv_updated = pet_csv.split('.')[0] + "_dosagetime_naccid_added.csv"
     petinfo_naccid.to_csv(os.path.join(upload_dir_current,pet_csv_updated),index=False,header=True)
 
@@ -107,6 +117,7 @@ def main():
     mri_csv = [x for x in os.listdir(upload_dir_current) if "MRI_sessions" in x][0]
     mriinfo=pd.read_csv(os.path.join(upload_dir_current,mri_csv))
     mriinfo_naccid = add_nacc_id(mriinfo, nacc_id)
+    mriinfo_naccid.info()
     mri_csv_updated = mri_csv.split('.')[0] + "_naccid_added.csv"
     mriinfo_naccid.to_csv(os.path.join(upload_dir_current,mri_csv_updated),index=False,header=True)
 
