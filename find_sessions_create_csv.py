@@ -24,13 +24,14 @@ def check_sessions(subject):
     # for each subject, upload only if sessions are ABC, 2021 or later, 
     # have 3T with new protocol Accelerated Sagital MPRAGE file and at least one PET session
     check_for_AccSag_acquisition = [[session.label for acquisition in session.acquisitions() if "Accelerated Sagittal MPRAGE (MSV21)" in acquisition.label] 
-                for session in subject.sessions() if "3T" in session.label and "ABC" in session.label]
+                for session in subject.sessions() if "3T" in session.label and ("ABC" in session.label or "MPC" in session.label)]
     usable_sessions = list(flatten(check_for_AccSag_acquisition))
     if usable_sessions:    
         # print(f"Subject {subject.label} has AccSag file in 3T scan, checking for PET scans")
-        check_for_PET = [session.label for session in subject.sessions() if ("FBBPET" in session.label or "AV1451" in session.label) and "ABC" in session.label and session.timestamp >= datetime(2021,1,1,0,0,0,tzinfo=timezone.utc)]
+        check_for_PET = [session.label for session in subject.sessions() if ("FBBPET" in session.label or "AV1451" in session.label) and ("ABC" in session.label or "MPC" in session.label) and session.timestamp >= datetime(2021,1,1,0,0,0,tzinfo=timezone.utc)]
         if check_for_PET:
             usable_sessions.extend(check_for_PET)
+            print(usable_sessions)
             return(usable_sessions)
     
 
@@ -141,6 +142,7 @@ def main():
                         logging.info(f"session {session.label} has already been added to SCAN")
                         continue
                     else:
+                        logging.info(f"session {session.label} is SCAN compliant")
                         if '3T' in session.label:
                             for acquisition in session.acquisitions():
                                 # gets both FLAIR and T1 scans
