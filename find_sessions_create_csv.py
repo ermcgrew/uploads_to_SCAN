@@ -31,6 +31,11 @@ def check_sessions(subject):
         check_for_PET = [session.label for session in subject.sessions() if ("FBBPET" in session.label or "AV1451" in session.label) and ("ABC" in session.label or "MPC" in session.label) and session.timestamp >= datetime(2021,1,1,0,0,0,tzinfo=timezone.utc)]
         if check_for_PET:
             usable_sessions.extend(check_for_PET)
+            ### filter out 2 sessions that don't have dosage data and can't be uploaded
+            if "124938x20211012xFBBPETxABC" in usable_sessions:
+                usable_sessions.remove("124938x20211012xFBBPETxABC")
+            if "119931x20211012xFBBPETxABC" in usable_sessions:
+                usable_sessions.remove("119931x20211012xFBBPETxABC")
             print(usable_sessions)
             return(usable_sessions)
     
