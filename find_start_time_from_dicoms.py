@@ -1,13 +1,15 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import os
 import pydicom
 
 #directory containing zip file of dicoms
-filepath = "/project/wolk/Prisma3T/relong/uploads_to_SCAN/2024_04_12/124733x20210720xAV1451PETxABC"
+filepath = "/project/wolk/Prisma3T/relong/uploads_to_SCAN/2025_03_03/131766x20241016xFBBPETxABCD2"
 
 ## Unzip download from flywheel
-os.system(f"cd {filepath}")
+# os.system(f'cd {filepath}')
+os.chdir(filepath)
+os.system('pwd')
 os.system("unzip -j PET.zip")
 os.system("unzip -j \[BR*")
 os.system("rm *.zip")

@@ -44,7 +44,7 @@ def add_dosage_info(petinfo,dosage_master):
     for index,row in petinfo.iterrows():
         session = row['Directory'].split('/')[-1:]
         study = session[0].split('x')[-1:][0]
-        studytracer= study + " " + row['Tracer']
+        studytracer= study + " " + str(row['Tracer'])
 
         #match on date and tracer
         match=dosage_master.loc[(dosage_master['Assay Date'] == row['Scan Date']) & (dosage_master['Tracer'] == row['Tracer'])]
