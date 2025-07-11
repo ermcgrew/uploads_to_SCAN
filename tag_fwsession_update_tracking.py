@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import csv
+from datetime import datetime
 import flywheel
 import logging
 import pandas as pd
@@ -96,8 +97,9 @@ def historic_tag():
 
 ## Set up
 current_upload_dir = get_current_upload_dir()
+current_datetime = datetime.now().strftime("%Y%m%dT%H%M%S")
 
-logging.basicConfig(filename=f"{current_upload_dir}/update_tracking_csv_tag_in_flywheel_log.txt", filemode='w', format="%(levelname)s: %(message)s", level=logging.DEBUG)
+logging.basicConfig(filename=f"{current_upload_dir}/update_tracking_csv_tag_in_flywheel_log_{current_datetime}.txt", filemode='w', format="%(levelname)s: %(message)s", level=logging.DEBUG)
 
 fw = flywheel.Client()
 try:

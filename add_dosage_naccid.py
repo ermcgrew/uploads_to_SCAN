@@ -91,8 +91,8 @@ def add_dosage_info(petinfo,dosage_master):
 
 def main():
     upload_dir_current = get_current_upload_dir()
-    current_date = datetime.now().strftime("%Y_%m_%d")
-    logging.basicConfig(filename=f"{upload_dir_current}/add_info_{current_date}.log", filemode='w', format="%(levelname)s: %(message)s", level=logging.DEBUG)
+    current_datetime = datetime.now().strftime("%Y%m%dT%H%M%S")
+    logging.basicConfig(filename=f"{upload_dir_current}/add_info_{current_datetime}.log", filemode='w', format="%(levelname)s: %(message)s", level=logging.DEBUG)
 
     ## Load PET csv and Dosage csv
     pet_csv = [x for x in os.listdir(upload_dir_current) if "PET_sessions" in x][0]
@@ -106,6 +106,8 @@ def main():
     ## Load NACCID csv
     nacc_id_csv = [ x for x in os.listdir(upload_dir_current) if "nacc" in x][0]
     nacc_id = pd.read_csv(os.path.join(upload_dir_current,nacc_id_csv))
+    nacc_id.info()
+    print(nacc_id.head())
     
     ##Add NACCID to PET csv
     petinfo_naccid = add_nacc_id(petinfo_dosage, nacc_id)

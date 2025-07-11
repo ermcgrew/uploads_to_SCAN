@@ -153,7 +153,12 @@ def main():
                                 # gets both FLAIR and T1 scans
                                 if "Sagittal" in acquisition.label: 
                                     logging.debug(f"downloading {session.label} {acquisition.label}")
-                                    acquisition_type = acquisition.label.split(' ')[2]
+                                    
+                                    if "MPRAGE" in acquisition.label.split(' '):
+                                        acquisition_type = "MPRAGE"
+                                    elif "FLAIR" in acquisition.label.split(' '):
+                                        acquisition_type =  "FLAIR"
+
                                     acquisition_directory = download_directory + "/" + session.label + "_" + acquisition_type
                                     os.system(f'mkdir {acquisition_directory}')
                                     acquisition_file = acquisition_directory + "/" + acquisition_type + ".zip"
@@ -204,12 +209,13 @@ pet_columms = [
 ]
 
 current_date = datetime.now().strftime("%Y_%m_%d")
+current_datetime = datetime.now().strftime("%Y%m%dT%H%M%S")
 download_directory = f"{scan_directory}/{current_date}"
 
 #create folder to hold downloads
 os.system(f'mkdir {download_directory}')
 
 #set up logging
-logging.basicConfig(filename=f"{download_directory}/create_csv_{current_date}.log", filemode='w', format="%(levelname)s: %(message)s", level=logging.DEBUG)
+logging.basicConfig(filename=f"{download_directory}/create_csv_{current_datetime}.log", filemode='w', format="%(levelname)s: %(message)s", level=logging.DEBUG)
 
 main()
