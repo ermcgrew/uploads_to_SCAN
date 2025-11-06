@@ -4,13 +4,13 @@ import os
 import pydicom
 
 #directory containing zip file of dicoms
-filepath = "/project/wolk/Prisma3T/relong/uploads_to_SCAN/2025_07_02/130731x20250205xFBBPETxABCD2"
+filepath = "/project/wolk/Prisma3T/relong/uploads_to_SCAN/2025_11_06/128281x20220706xAV1451PETxABCD2"
 
 ## Unzip download from flywheel
 os.chdir(filepath)
 os.system('pwd')
 os.system("unzip -j PET.zip")
-os.system("unzip -j \[BR*")
+os.system("unzip -j *\[BR*")
 os.system("rm *.zip")
 
 ## record all timepoints from dicom files

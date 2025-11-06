@@ -21,24 +21,32 @@ def read_upload_tracking_csv():
 
  
 def check_sessions(subject):
-    # for each subject, upload only if sessions are ABC, 2021 or later, 
-    # have 3T with new protocol Accelerated Sagital MPRAGE file and at least one PET session
-    check_for_AccSag_acquisition = [[session.label for acquisition in session.acquisitions() if "Accelerated Sagittal MPRAGE (MSV21)" in acquisition.label] 
-                for session in subject.sessions() if "3T" in session.label and ("ABC" in session.label or "MPC" in session.label)]
-    usable_sessions = list(flatten(check_for_AccSag_acquisition))
-    if usable_sessions:    
-        # print(f"Subject {subject.label} has AccSag file in 3T scan, checking for PET scans")
-        check_for_PET = [session.label for session in subject.sessions() if ("FBBPET" in session.label or "AV1451" in session.label) and ("ABC" in session.label or "MPC" in session.label) and session.timestamp >= datetime(2021,1,1,0,0,0,tzinfo=timezone.utc)]
-        if check_for_PET:
-            usable_sessions.extend(check_for_PET)
-            ### filter out 2 sessions that don't have dosage data and can't be uploaded
-            if "124938x20211012xFBBPETxABC" in usable_sessions:
-                usable_sessions.remove("124938x20211012xFBBPETxABC")
-            if "119931x20211012xFBBPETxABC" in usable_sessions:
-                usable_sessions.remove("119931x20211012xFBBPETxABC")
-            print(usable_sessions)
-            return(usable_sessions)
-    
+    ### edit to criteria 2025/11/05: any ABC, ABCD2, or MPC session. For 3T: must have AccSag. For PET: FBB & AV1451 only, not from explorer
+    usable_sessions=[]
+    for session in subject.sessions():
+        if "ABC" in session.label or "MPC" in session.label: 
+                ## check acquisitions for AccSag version in MRI3T
+                if "3T" in session.label: 
+                    ### only have AccSag sequence afte Sept 2022
+                    if session.timestamp >= datetime(2022,9,1,0,0,0,tzinfo=timezone.utc):
+                        test=[session.label for acquisition in session.acquisitions() if "Accelerated Sagittal MPRAGE (MSV21)" in acquisition.label]
+                        if len(test) > 0:
+                            usable_sessions.append(session.label)
+                ## check for any PET after 2021
+                elif "PET" in session.label:
+                    if session.timestamp >= datetime(2021,1,1,0,0,0,tzinfo=timezone.utc):
+                        if "PI2620" not in session.label:
+                            usable_sessions.append(session.label)
+
+    ## filter out 2 sessions that don't have dosage data and can't be uploaded
+    if "124938x20211012xFBBPETxABC" in usable_sessions:
+        usable_sessions.remove("124938x20211012xFBBPETxABC")
+    if "119931x20211012xFBBPETxABC" in usable_sessions:
+        usable_sessions.remove("119931x20211012xFBBPETxABC")                        
+
+    print(usable_sessions)
+    return(usable_sessions)
+
 
 def find_pet_metadata(acquisition): 
     #parse through acquisition to get specific pet metadata info
@@ -55,9 +63,13 @@ def find_pet_metadata(acquisition):
     dicom_file_index = [
         x for x in range(0, len(acq.files)) if acq.files[x].type == "dicom"
     ][0]
-    nifti_file_index = [
-        x for x in range(0, len(acq.files)) if acq.files[x].type == "nifti"
-    ][0]
+    try:
+        nifti_file_index = [
+            x for x in range(0, len(acq.files)) if acq.files[x].type == "nifti"
+        ][0]
+    except:
+        logging.warning(f"Not converrted to nifti")
+        nifti_file_index=9
     
     try:
         tracer_dose_bec = [acq.files[dicom_file_index].info["RadiopharmaceuticalInformationSequence"]["RadionuclideTotalDose"]]
@@ -83,7 +95,10 @@ def find_pet_metadata(acquisition):
     except KeyError as e:
         emission_start_time = ""
         logging.warning(f"Key {e} doesn't exist") 
-     
+    except:
+        logging.warning(f'no nifti file')
+        emission_start_time = ""
+
     emission_start_time_nodecimal = emission_start_time.split(".")[0]
     if ":" not in emission_start_time_nodecimal:
         emission_start_time_formatted=emission_start_time_nodecimal[0:2] + ":" + emission_start_time_nodecimal[2:4] + ":" + emission_start_time_nodecimal[4:]
